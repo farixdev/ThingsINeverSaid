@@ -3,6 +3,8 @@
 import { useState } from "react";
 import SiteHeader from "@/components/site-header";
 
+const API_BASE = "http://localhost:3333";
+
 export default function WritePage() {
   const [text, setText] = useState("");
   const [author, setAuthor] = useState("");
@@ -21,25 +23,12 @@ export default function WritePage() {
 
     const trimmedAuthor = author.trim() || "Anonymous";
     const trimmedTitle = title.trim() || text.trim().substring(0, 25) + (text.length > 25 ? "..." : "");
-    const dateStr = new Date().toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-
-    const newConfession = {
-      title: trimmedTitle,
-      snippet: text.trim(),
-      author: trimmedAuthor,
-      date: dateStr,
-      id: "local_" + Date.now(),
-    };
 
     setStatus("Sending your note to the wall...");
     setStatusType("info");
 
     try {
-      // Attempt backend post
-      const response = await fetch("http://localhost:3333/confessions", {
+      const response = await fetch(`${API_BASE}/confessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,30 +42,15 @@ export default function WritePage() {
         setText("");
         setAuthor("");
         setTitle("");
-        setStatus("Your note was pinned to the online wall successfully!");
+        setStatus("Your note was pinned to the wall successfully!");
         setStatusType("success");
       } else {
-        throw new Error("Backend rejected request");
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.message || "Backend rejected request");
       }
     } catch (error) {
-      // LocalStorage fallback
-      console.warn("Backend unavailable. Storing confession locally.");
-      
-      try {
-        const localData = localStorage.getItem("tins_local_confessions");
-        const existingConfessions = localData ? JSON.parse(localData) : [];
-        existingConfessions.unshift(newConfession);
-        localStorage.setItem("tins_local_confessions", JSON.stringify(existingConfessions));
-        
-        setText("");
-        setAuthor("");
-        setTitle("");
-        setStatus("Could not connect to backend server, but your note has been saved safely in your local journal. Visit the 'Read' page to see it pinned!");
-        setStatusType("success");
-      } catch (storageError) {
-        setStatus("Could not pin your note. Please try again later.");
-        setStatusType("error");
-      }
+      setStatus(`Could not pin your note: ${error.message}. Make sure the backend server is running.`);
+      setStatusType("error");
     }
   };
 
@@ -108,7 +82,7 @@ export default function WritePage() {
                 you never said.
               </h1>
               <p className="text-sm leading-6 text-[#6B6368] sm:text-base">
-                Use this page to capture the message that’s been waiting in the wings. Your words will be saved safely on the reading wall.
+                Use this page to capture the message that's been waiting in the wings. Your words will be saved safely on the reading wall.
               </p>
             </div>
 
@@ -120,7 +94,7 @@ export default function WritePage() {
                 <li>• Write honestly, from a place of patience and breathing.</li>
                 <li>• Give it an optional title to encapsulate your thoughts.</li>
                 <li>• Use an author name or leave it blank to remain anonymous.</li>
-                <li>• If offline, your letters are securely stored on your device.</li>
+                <li>• Your words are stored securely on the server.</li>
               </ul>
             </div>
           </div>

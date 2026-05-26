@@ -127,3 +127,25 @@ img {
   background-size: 100% 2rem;
   line-height: 2rem !important;
 }
+
+/* Shimmer skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    #f6e4e9 25%,
+    #fdf0f3 37%,
+    #f6e4e9 63%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+

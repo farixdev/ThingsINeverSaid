@@ -1,114 +1,154 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import SiteHeader from "@/components/site-header";
 import ConfessionCard from "@/components/confession-card";
-import { sampleConfessions } from "@/data/sample-confessions";
+import ShimmerCard from "@/components/shimmer-card";
 
-const svgConfessions = [
-  {
-    title: "You Never Knew",
-    snippet: "Deep down, she will be the last. This time was different. She wasn't a passing image or a distant idea. She existed in my life longer than anyone else I've loved. I saw her often. She stayed in my world. And yes I even talked to her. More than once. Which, for me, felt like a miracle. So what went wrong?",
-    author: "Anonymous",
-    date: "May 2026",
-    isSvg: true,
-    src: "/you never knew.svg",
-    id: "svg_1",
-  },
-  {
-    title: "Loved Her Silently",
-    snippet: "I loved her silently, and now it hurts to watch her go. She was the one who got away, the story I kept locked inside my chest. Love has nothing to do with facial features or height—love is about the soul, and her soul pulled me in with a violent, beautiful force that I was too afraid to act upon.",
-    author: "Anonymous",
-    date: "May 2026",
-    isSvg: true,
-    src: "/Loved her silently and now it hurts.svg",
-    id: "svg_2",
-  },
-  {
-    title: "I Miss Who We Used To Be",
-    snippet: "I miss who we used to be. The effortless laughter, the tiny inside jokes, the endless late-night chats that felt like they would never end. We became strangers so slowly that I didn't even notice the cold silence settling in, until one day I realized we had nothing left to say.",
-    author: "Anonymous",
-    date: "April 2026",
-    isSvg: true,
-    src: "/i miss who we used to be.svg",
-    id: "svg_3",
-  },
-  {
-    title: "I Regret Not Saying It",
-    snippet: "I regret not choosing honesty over safety when you were standing right in front of me. The truth was on the very tip of my tongue, but my fear made me swallow it back down. Now I'm left with a hollow chest and the infinite, exhausting weight of 'what if'.",
-    author: "Anonymous",
-    date: "March 2026",
-    isSvg: true,
-    src: "/i regret not saying it.svg",
-    id: "svg_4",
-  },
-  {
-    title: "I Watch You Love Someone Else",
-    snippet: "I watch you love someone else. It is simultaneously the most beautiful and painful sight I have ever witnessed. I wish with everything in me that I was the one making you smile like that, but I will settle for observing your happiness from the quiet edges of your life.",
-    author: "Anonymous",
-    date: "February 2026",
-    isSvg: true,
-    src: "/i watch you love somone else.svg",
-    id: "svg_5",
-  },
-  {
-    title: "I Wish You Fought For Me",
-    snippet: "I wish you fought for me. Even just a little bit. Even a small, simple sign that you cared enough not to let me slip away so easily into the dark. But your absolute silence spoke louder than any words ever could, showing me exactly where I stood in your heart.",
-    author: "Anonymous",
-    date: "January 2026",
-    isSvg: true,
-    src: "/i wish you fought for me.svg",
-    id: "svg_6",
-  },
-  {
-    title: "I Lied To Protect Your Feelings",
-    snippet: "I lied to protect your feelings. But in the end, it was my own heart that lay completely shattered on the floor. A clean, silent sacrifice that you will never know about, and one that I would probably make all over again if it meant keeping your world intact.",
-    author: "Anonymous",
-    date: "December 2025",
-    isSvg: true,
-    src: "/i lied to protect your feelings.svg",
-    id: "svg_7",
-  },
-  {
-    title: "I'm Scared I Always Feel Alone",
-    snippet: "I'm scared because I always feel alone. Even in a crowded room, surrounded by warmth and laughter. It feels like watching life through a thick pane of glass—never fully present, never fully alive, just a silent observer waiting to finally wake up.",
-    author: "Anonymous",
-    date: "November 2025",
-    isSvg: true,
-    src: "/im scared i always feel alone.svg",
-    id: "svg_8",
-  },
-];
+const API_BASE = "http://localhost:3333";
+const PAGE_SIZE = 12;
 
 export default function ReadPage() {
   const [confessions, setConfessions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeConfession, setActiveConfession] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const sentinelRef = useRef(null);
 
+  // Debounce the search input
   useEffect(() => {
-    // Merge predefined sample confessions, SVGs, and localStorage user confessions
-    const localData = localStorage.getItem("tins_local_confessions");
-    const userConfessions = localData ? JSON.parse(localData) : [];
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    const formattedSampleText = sampleConfessions.map((c, i) => ({
-      ...c,
-      author: "Anonymous",
-      isSvg: false,
-      id: `sample_${i}`,
-    }));
+  // Reset pagination when search changes
+  useEffect(() => {
+    setPage(1);
+    setConfessions([]);
+    setHasMore(true);
+    setLoading(true);
+  }, [debouncedSearch]);
 
-    // Order: User Confessions (newest first) -> SVG Calligraphy -> Predefined Samples
-    setConfessions([...userConfessions, ...svgConfessions, ...formattedSampleText]);
+  // Fetch confessions from API
+  const fetchConfessions = useCallback(async (pageNum, search) => {
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: PAGE_SIZE.toString(),
+      });
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+
+      const res = await fetch(`${API_BASE}/confessions?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const json = await res.json();
+      return json;
+    } catch (err) {
+      console.error("API fetch error:", err);
+      return null;
+    }
   }, []);
 
-  const filteredConfessions = confessions.filter((item) => {
-    return (
-      searchQuery.trim() === "" ||
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.snippet.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.author && item.author.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Initial load and search-triggered reload
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      const result = await fetchConfessions(1, debouncedSearch);
+      if (cancelled) return;
+
+      if (result) {
+        setConfessions(result.data);
+        setHasMore(result.hasMore);
+        setPage(1);
+      } else {
+        setConfessions([]);
+        setHasMore(false);
+      }
+      setLoading(false);
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [debouncedSearch, fetchConfessions]);
+
+  // Load more (next page)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
+    const result = await fetchConfessions(nextPage, debouncedSearch);
+
+    if (result) {
+      setConfessions((prev) => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+      setPage(nextPage);
+    }
+    setLoadingMore(false);
+  }, [loadingMore, hasMore, page, debouncedSearch, fetchConfessions]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
     );
-  });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, loadMore]);
+
+  // Click on a card → fetch full confession
+  const handleCardClick = async (item) => {
+    setActiveConfession({ ...item, fullText: null });
+    setLoadingDetail(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/confessions/${item.id}`);
+      if (!res.ok) throw new Error("Failed to fetch detail");
+      const full = await res.json();
+      setActiveConfession({
+        id: full.id,
+        title: full.title,
+        text: full.text,
+        author: full.author,
+        date: full.createdAt,
+        fullText: full.text,
+      });
+    } catch {
+      // Fallback to the snippet we already have
+      setActiveConfession((prev) => prev ? { ...prev, fullText: prev.text || prev.snippet } : null);
+    }
+    setLoadingDetail(false);
+  };
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#f9eef1] pb-16 relative overflow-hidden">
@@ -167,27 +207,50 @@ export default function ReadPage() {
         </div>
 
         {/* Grid Wall */}
-        {filteredConfessions.length > 0 ? (
+        {loading ? (
+          /* Initial loading: show 12 shimmer cards */
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-start">
-            {filteredConfessions.map((item) => (
-              <ConfessionCard
-                key={item.id}
-                title={item.title}
-                snippet={item.snippet}
-                author={item.author}
-                date={item.date}
-                isSvg={item.isSvg}
-                src={item.src}
-                onClick={() => setActiveConfession(item)}
-              />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ShimmerCard key={`shimmer-init-${i}`} />
             ))}
           </div>
+        ) : confessions.length > 0 ? (
+          <>
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-start">
+              {confessions.map((item) => (
+                <ConfessionCard
+                  key={item.id}
+                  title={item.title}
+                  snippet={item.text || item.snippet}
+                  author={item.author}
+                  date={formatDate(item.createdAt || item.date)}
+                  isSvg={false}
+                  onClick={() => handleCardClick(item)}
+                />
+              ))}
+
+              {/* Shimmer cards for loading more */}
+              {loadingMore &&
+                Array.from({ length: 3 }).map((_, i) => (
+                  <ShimmerCard key={`shimmer-more-${i}`} />
+                ))}
+            </div>
+
+            {/* Sentinel for IntersectionObserver */}
+            {hasMore && <div ref={sentinelRef} className="h-4 w-full" />}
+
+            {!hasMore && confessions.length > PAGE_SIZE && (
+              <p className="text-center text-xs text-[#AB8B96] mt-10 italic">
+                You&apos;ve reached the end of the wall ✦
+              </p>
+            )}
+          </>
         ) : (
           <div className="mt-16 text-center space-y-4 py-12 rounded-[32px] border border-[#f5dde1]/60 bg-white/40 backdrop-blur-xs">
             <div className="text-3xl">☕</div>
             <h3 className="font-semibold text-[#5D4C54] text-lg">No confessions found</h3>
             <p className="text-xs text-[#6B6368] max-w-sm mx-auto leading-5">
-              We couldn't find any confessions matching your current search criteria. Try write one yourself to pin it on the wall!
+              We couldn&apos;t find any confessions matching your current search criteria. Try write one yourself to pin it on the wall!
             </p>
             <a
               href="/write"
@@ -219,7 +282,7 @@ export default function ReadPage() {
             <div className="flex flex-col">
               <h3 className="text-2xl font-semibold text-[#5D4C54] mb-1 pr-12 font-serif">{activeConfession.title}</h3>
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-[#AB8B96] mb-6">
-                <span>{activeConfession.date}</span>
+                <span>{formatDate(activeConfession.date || activeConfession.createdAt)}</span>
                 {activeConfession.author && (
                   <>
                     <span className="text-[#eecad2]">•</span>
@@ -229,17 +292,17 @@ export default function ReadPage() {
               </div>
 
               <div className="flex w-full items-center justify-center rounded-[24px] bg-[#fffafb] border border-[#F6DDE1] shadow-inner max-h-[60vh] overflow-y-auto">
-                {activeConfession.isSvg ? (
-                  <div className="p-4 flex justify-center">
-                    <img
-                      src={activeConfession.src}
-                      alt={activeConfession.title}
-                      className="max-h-[50vh] max-w-full object-contain"
-                    />
+                {loadingDetail ? (
+                  <div className="w-full p-6 md:p-8 space-y-3">
+                    <div className="h-4 w-full rounded-full shimmer-bg" />
+                    <div className="h-4 w-11/12 rounded-full shimmer-bg" />
+                    <div className="h-4 w-4/5 rounded-full shimmer-bg" />
+                    <div className="h-4 w-9/12 rounded-full shimmer-bg" />
+                    <div className="h-4 w-3/5 rounded-full shimmer-bg" />
                   </div>
                 ) : (
                   <div className="writing-paper w-full p-6 text-[#5D4C54] text-base font-serif leading-relaxed md:p-8 whitespace-pre-wrap">
-                    {activeConfession.snippet}
+                    {activeConfession.fullText || activeConfession.text || activeConfession.snippet}
                   </div>
                 )}
               </div>
