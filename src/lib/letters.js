@@ -55,15 +55,9 @@ export const LETTERS = [
   },
 ];
 
-/** Large embedded artwork — used once, on the About page, never on the wall. */
-export const FEATURED_LETTER = {
-  src: "/letters/i-wish-you-fought-for-me.svg",
-  title: "I wish you fought for me",
-};
-
 /**
- * Pressed flowers. Purely decorative — they are scattered between the notes to
- * break up the paper, and they are never interactive.
+ * Pressed flowers. Purely decorative — scattered between the notes on the wall
+ * and out in the margins of the About page, never interactive.
  */
 export const PETALS = [
   { id: "petal-1", src: "/petals/flower-1.png", w: 287, h: 284 },

@@ -33,7 +33,7 @@ export default function Reveal({ children, delay = 0, as: Tag = "div", className
   return (
     <Tag
       ref={ref}
-      className={className}
+      className={`${className} ${shown ? "is-shown" : ""}`.trim()}
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? "none" : "translateY(18px)",

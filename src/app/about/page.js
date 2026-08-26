@@ -1,12 +1,25 @@
 import Link from "next/link";
+import Image from "next/image";
 import Reveal from "@/components/reveal";
-import { Arrow, Seal, Sprig } from "@/components/marks";
-import { FEATURED_LETTER } from "@/lib/letters";
+import { Arrow, Diamond, Seal, Sprig } from "@/components/marks";
+import { PETALS } from "@/lib/letters";
 
 export const metadata = {
   title: "About",
   description: "Why this wall exists, and the confession that started it.",
 };
+
+/** Things that were deliberately never built. Struck through, on purpose. */
+const ABSENT = [
+  "likes",
+  "replies",
+  "followers",
+  "a feed",
+  "an algorithm",
+  "notifications",
+  "an account",
+  "any way to know who read it",
+];
 
 /**
  * The letter this whole site was built around. Kept here in full, in the
@@ -24,99 +37,125 @@ const STORY = [
   "Over time, hope became exhausting, so I let it go without making a scene. Now I move through life with low expectations, not because I'm bitter, but because I understand how easily things slip away. This is not a phase or a wound waiting to heal — it's simply the shape my life took, and I've stopped arguing with it.",
 ];
 
+function Divider() {
+  return (
+    <div className="divider" aria-hidden="true">
+      <span />
+      <Diamond />
+      <span />
+    </div>
+  );
+}
+
 export default function AboutPage() {
   return (
-    <main className="scroll-surface">
-      <div className="mx-auto w-full max-w-[44rem] px-6 pb-28 pt-32 sm:px-8 sm:pt-40">
+    <main className="scroll-surface about">
+      {/* pressed flowers, kept out in the margins where there is room */}
+      <Image
+        src={PETALS[2].src}
+        alt=""
+        width={220}
+        height={218}
+        aria-hidden="true"
+        className="about-petal about-petal-a"
+      />
+      <Image
+        src={PETALS[4].src}
+        alt=""
+        width={200}
+        height={198}
+        aria-hidden="true"
+        className="about-petal about-petal-b"
+      />
+
+      <div className="mx-auto w-full max-w-[42rem] px-6 pb-32 pt-32 sm:px-8 sm:pt-44">
         {/* ---------------------------------------------------------- hero */}
-        <Reveal as="header" className="text-center">
-          <Sprig size={38} className="mx-auto text-[var(--rose)] opacity-45" />
-          <p className="eyebrow mt-7">about this place</p>
-          <h1 className="display mt-5 text-[clamp(2.2rem,1.6rem+3.2vw,3.8rem)]">
-            Some things are only
+        <Reveal as="header">
+          <Sprig size={34} className="text-[var(--rose)] opacity-45" />
+          <p className="eyebrow mt-8">about</p>
+          <h1 className="display mt-5 text-[clamp(2.1rem,1.5rem+3vw,3.5rem)]">
+            Everyone is carrying a sentence
             <br />
-            <em className="italic text-[var(--rose)]">sayable anonymously.</em>
+            they never said out loud.
           </h1>
+          <p className="mt-7 max-w-[30rem] text-[1.05rem] leading-[1.8] text-[var(--ink-2)]">
+            This is somewhere to put it down.
+          </p>
         </Reveal>
 
-        <hr className="rule my-14" />
+        <Divider />
 
         {/* ----------------------------------------------------------- why */}
-        <Reveal as="section" className="space-y-6 text-[1.02rem] leading-[1.85]">
-          <p>
+        <Reveal as="section">
+          <p className="lede">
             Most of what we feel never gets said. Not because it does not
             matter — because saying it costs something. It would embarrass
-            somebody, or reopen something, or arrive years too late to be
-            useful. So it stays in, and it keeps its weight.
+            somebody, or reopen something, or arrive years too late to be any
+            use at all.
           </p>
-          <p>
+
+          <blockquote className="pull">
+            So it stays in. And it keeps its weight.
+          </blockquote>
+
+          <p className="mt-8 text-[1.02rem] leading-[1.85]">
             This site does not fix that. It just gives the sentence somewhere to
             go. You write it once, without your name on it, and it stops being
             only yours. That is a smaller thing than closure and a bigger thing
             than nothing.
           </p>
-          <p>
-            There is deliberately nothing here to chase. No follower count, no
-            reply box, no way to know whether anyone saw it. Every feature that
-            would have made this addictive was left out on purpose. What is left
-            is a quiet room with other people&apos;s handwriting on the walls.
+        </Reveal>
+
+        <Divider />
+
+        {/* ------------------------------------------------- what isn't here */}
+        <Reveal as="section">
+          <p className="eyebrow">what this place doesn&apos;t have</p>
+          <ul className="struck mt-9">
+            {ABSENT.map((thing, index) => (
+              <li key={thing} style={{ "--i": index }}>
+                {thing}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-9 text-[1.02rem] leading-[1.85] text-[var(--ink-2)]">
+            Every one of those was left out on purpose. What is left is a quiet
+            room with other people&apos;s handwriting on the walls, and no way
+            to be rewarded for being in it.
           </p>
-          <p className="text-[var(--ink-3)]">
+          <p className="mt-5 text-[0.95rem] leading-[1.8] text-[var(--ink-3)]">
             Be gentle in here. Every note is real, and somebody is still living
             inside the situation they wrote about.
           </p>
         </Reveal>
 
-        <hr className="rule my-14" />
+        <Divider />
 
         {/* ------------------------------------------------------- the story */}
         <Reveal as="section">
-          <p className="eyebrow text-center">the one that started it</p>
-          <h2 className="display mt-4 text-center text-[clamp(1.8rem,1.3rem+2vw,2.8rem)]">
+          <p className="eyebrow">the one that started it</p>
+          <h2 className="display mt-4 text-[clamp(1.9rem,1.4rem+2vw,2.9rem)]">
             You never knew.
           </h2>
-          <p className="mt-4 text-center text-[0.8125rem] text-[var(--ink-3)]">
-            The confession this whole place was built to hold.
+          <p className="mt-5 max-w-[32rem] text-[0.95rem] leading-[1.8] text-[var(--ink-3)]">
+            The whole site exists because of this one. It was written for a
+            single person, and never sent to her.
           </p>
 
-          <div className="story mt-11">
+          <article className="story mt-10">
+            <Seal size={34} className="story-seal" />
             {STORY.map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
             <p className="story-sign">— written, never sent</p>
-          </div>
+          </article>
         </Reveal>
 
-        <hr className="rule my-14" />
-
-        {/* --------------------------------------------------- featured letter */}
-        <Reveal as="section">
-          <p className="eyebrow text-center">from the archive</p>
-          <h2 className="display mt-4 text-center text-[clamp(1.6rem,1.3rem+1.6vw,2.4rem)]">
-            {FEATURED_LETTER.title}
-          </h2>
-          <figure className="paper mt-9 flex max-h-[70vh] justify-center overflow-hidden rounded-[4px] p-4 sm:p-7">
-            {/* Hand-lettered SVG: next/image would need dangerouslyAllowSVG and cannot optimise it anyway. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={FEATURED_LETTER.src}
-              alt={`Hand-lettered piece: ${FEATURED_LETTER.title}`}
-              className="h-auto max-h-[62vh] w-auto max-w-full object-contain mix-blend-multiply"
-              loading="lazy"
-              decoding="async"
-            />
-          </figure>
-          <figcaption className="mt-4 text-center text-[0.8125rem] text-[var(--ink-3)]">
-            One of the hand-lettered pieces pinned across the wall.
-          </figcaption>
-        </Reveal>
-
-        <hr className="rule my-14" />
+        <Divider />
 
         {/* ------------------------------------------------------------- close */}
         <Reveal as="section" className="text-center">
-          <Seal size={40} className="mx-auto text-[var(--rose)] opacity-45" />
-          <h2 className="display mt-6 text-[clamp(1.6rem,1.3rem+1.6vw,2.4rem)]">
+          <h2 className="display text-[clamp(1.7rem,1.3rem+1.8vw,2.5rem)]">
             There is space on the wall.
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -128,7 +167,7 @@ export default function AboutPage() {
               Walk the wall
             </Link>
           </div>
-          <p className="mt-14 text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--ink-3)]">
+          <p className="mt-16 text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--ink-3)]">
             Made by{" "}
             <a
               href="https://github.com/farixdev"
@@ -136,7 +175,7 @@ export default function AboutPage() {
               target="_blank"
               rel="noreferrer"
             >
-              Faris Tahoor
+              farixdev
             </a>
           </p>
         </Reveal>

@@ -169,6 +169,21 @@ export function Arrow({ size = 16, className = "" }) {
 }
 
 /** The little paper fasteners that hold notes to the wall. */
+export function Diamond({ size = 9, className = "" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 10 10"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5 0 10 5 5 10 0 5Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function Fastener({ kind, color }) {
   if (kind === "none") return null;
 
