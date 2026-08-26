@@ -79,8 +79,11 @@ Import the repo on [Vercel](https://vercel.com), add `DATABASE_URL` and
 `IP_SALT` as environment variables, and deploy. There is no other service and no
 separate backend — the whole app is one Next.js project.
 
-Optionally set `NEXT_PUBLIC_SITE_URL` to your final domain so canonical URLs,
-the sitemap and social cards point at the right place.
+Optionally set `NEXT_PUBLIC_SITE_URL` to your final domain (`https://example.com`)
+so canonical URLs, the sitemap and social cards point at the right place. On
+Vercel it is genuinely optional — the deployment domain is picked up on its own —
+and anything that isn't a real URL is ignored with a warning rather than failing
+the build.
 
 ## How it's built
 

@@ -1,5 +1,6 @@
 import { Caveat, Geist, Instrument_Serif } from "next/font/google";
 import { Aurora, Grain } from "@/components/atmosphere";
+import { siteUrl } from "@/lib/site";
 import Nav from "@/components/nav";
 import "./globals.css";
 
@@ -23,14 +24,8 @@ const caveat = Caveat({
   display: "swap",
 });
 
-const site =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3000");
-
 export const metadata = {
-  metadataBase: new URL(site),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Things I Never Said",
     template: "%s — Things I Never Said",
