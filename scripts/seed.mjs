@@ -2,15 +2,18 @@
  * Seeds the wall with a starting set of confessions so a fresh database isn't
  * an empty room.
  *
- *   npm run seed          — add them (skips if the wall already has rows)
- *   npm run seed -- --force   — add them anyway
+ *   npm run seed          — add any that aren't already there
  *   npm run seed:clear    — remove only the seeded rows
+ *
+ * Safe to run again after adding new entries: it inserts only the ones the
+ * database is missing, so nothing is ever duplicated.
  *
  * Seeded rows are tagged with ip_hash = 'seed' so clearing never touches
  * anything a real person wrote.
  */
 
 import { neon } from "@neondatabase/serverless";
+import { LONGING } from "./confessions-longing.mjs";
 
 const SEED_MARK = "seed";
 
@@ -290,6 +293,8 @@ if (!url) {
 const sql = neon(url);
 const args = new Set(process.argv.slice(2));
 
+const ALL = [...CONFESSIONS, ...LONGING];
+
 async function main() {
   if (args.has("--clear")) {
     const removed = await sql`DELETE FROM confessions WHERE ip_hash = ${SEED_MARK} RETURNING id`;
@@ -297,27 +302,27 @@ async function main() {
     return;
   }
 
-  const [{ n }] = await sql`SELECT COUNT(*)::int AS n FROM confessions`;
-  if (n > 0 && !args.has("--force")) {
-    console.log(`The wall already holds ${n} confessions. Nothing seeded. Use --force to add anyway.`);
+  const existing = await sql`SELECT title FROM confessions WHERE ip_hash = ${SEED_MARK}`;
+  const have = new Set(existing.map((row) => row.title));
+  const missing = ALL.map((c, index) => ({ ...c, index })).filter((c) => !have.has(c.title));
+
+  if (missing.length === 0) {
+    console.log(`All ${ALL.length} seeded confessions are already on the wall.`);
     return;
   }
 
-  // Spread the timestamps over the last few months so the wall doesn't look
-  // like it was filled in one afternoon.
+  // Spread the timestamps over the last few months, using each confession's
+  // place in the full list, so re-running keeps the same shape.
   const now = Date.now();
-  let written = 0;
-  for (let i = 0; i < CONFESSIONS.length; i += 1) {
-    const c = CONFESSIONS[i];
-    const daysAgo = Math.round(((CONFESSIONS.length - i) / CONFESSIONS.length) * 150 + (i % 7));
-    const when = new Date(now - daysAgo * 86400000 - (i % 11) * 3600000);
+  for (const c of missing) {
+    const daysAgo = Math.round(((ALL.length - c.index) / ALL.length) * 170 + (c.index % 7));
+    const when = new Date(now - daysAgo * 86400000 - (c.index % 11) * 3600000);
     await sql`
       INSERT INTO confessions (title, text, author, mood, ip_hash, status, "createdAt")
       VALUES (${c.title}, ${c.text}, ${c.author}, ${c.mood}, ${SEED_MARK}, 'approved', ${when.toISOString()})
     `;
-    written += 1;
   }
-  console.log(`Pinned ${written} confessions to the wall.`);
+  console.log(`Pinned ${missing.length} confessions to the wall (${ALL.length} total).`);
 }
 
 main().catch((error) => {

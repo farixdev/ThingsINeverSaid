@@ -73,8 +73,10 @@ To start with something on the wall instead of an empty room:
 npm run seed
 ```
 
-`npm run seed:clear` removes only the seeded rows and never touches anything a
-real person wrote.
+It adds ninety confessions written for the project, already approved so they go
+straight onto the wall. Running it again only inserts what is missing, so it is
+safe to re-run after adding to `scripts/`. `npm run seed:clear` removes only the
+seeded rows and never touches anything a real person wrote.
 
 ## Moderation
 

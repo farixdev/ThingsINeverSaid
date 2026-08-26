@@ -214,8 +214,8 @@ function DeskTab({ href, active, count, children }) {
           : "border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]"
       }`}
     >
-      {children}
-      <span className="ml-2 tabular-nums text-[var(--ink-4)]">{count}</span>
+      {children}{" "}
+      <span className="ml-1 tabular-nums text-[var(--ink-4)]">{count}</span>
     </Link>
   );
 }
