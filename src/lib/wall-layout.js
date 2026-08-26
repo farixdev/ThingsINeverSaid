@@ -266,10 +266,6 @@ export function cameraFor(depthIndex, point, zoom) {
   };
 }
 
-export function clampZoom(z) {
-  return Math.min(1.55, Math.max(0.34, z));
-}
-
 /** Ease used by every camera flight on the wall. */
 export function easeInOutQuint(t) {
   return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;

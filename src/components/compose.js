@@ -37,15 +37,15 @@ function Sheet({ onAgain }) {
       <div className="relative z-10 max-w-[30rem] text-center settle">
         <Seal size={46} className="mx-auto text-[var(--rose)] opacity-55" />
         <h1 className="display mt-7 text-[clamp(1.9rem,1.4rem+2.4vw,3rem)]">
-          It&apos;s on the wall.
+          It&apos;s out of your hands.
         </h1>
         <p className="mt-4 text-[0.95rem] leading-relaxed text-[var(--ink-2)]">
-          Nobody knows it was you. It will sit out there with everyone
-          else&apos;s, quietly, for as long as this place exists.
+          Somebody reads everything before it goes up, so it may be a little
+          while. Nobody knows it was you, and nobody will.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href="/read" className="btn">
-            Go and find it
+            Walk the wall
             <Arrow />
           </Link>
           <button type="button" className="btn btn-ghost" onClick={onAgain}>

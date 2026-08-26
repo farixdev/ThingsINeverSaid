@@ -236,6 +236,21 @@
   border-color: rgba(169, 99, 93, 0.35);
 }
 
+.btn-sm {
+  padding: 0.5rem 0.95rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+}
+
+.btn-danger {
+  --btn-bg: #8f3f3a;
+  --btn-fg: #fdf7f4;
+}
+
+.btn-danger:hover {
+  --btn-bg: #7a3531;
+}
+
 .field {
   width: 100%;
   background: transparent;

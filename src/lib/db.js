@@ -24,9 +24,14 @@ async function bootstrap() {
   // Additive migrations — safe to re-run, and safe against the original TypeORM table.
   await sql`ALTER TABLE confessions ADD COLUMN IF NOT EXISTS mood VARCHAR(16) NOT NULL DEFAULT 'unspoken'`;
   await sql`ALTER TABLE confessions ADD COLUMN IF NOT EXISTS ip_hash CHAR(64)`;
+  // Added with a default of 'approved' so anything written before moderation
+  // existed stays on the wall; new confessions come in as 'pending'.
+  await sql`ALTER TABLE confessions ADD COLUMN IF NOT EXISTS status VARCHAR(12) NOT NULL DEFAULT 'approved'`;
+  await sql`ALTER TABLE confessions ALTER COLUMN status SET DEFAULT 'pending'`;
   await sql`ALTER TABLE confessions ALTER COLUMN title DROP NOT NULL`;
   await sql`CREATE INDEX IF NOT EXISTS confessions_created_idx ON confessions ("createdAt" DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS confessions_rate_idx ON confessions (ip_hash, "createdAt" DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS confessions_status_idx ON confessions (status, "createdAt" DESC)`;
 }
 
 /**

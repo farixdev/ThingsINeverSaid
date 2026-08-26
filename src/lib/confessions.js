@@ -3,6 +3,7 @@ import { sql, ensureSchema } from "./db";
 
 export const WALL_TAG = "wall";
 export const WALL_LIMIT = 240;
+export const DESK_LIMIT = 200;
 
 /** How much of a confession the wall shows before you open it. */
 const PREVIEW_CHARS = 220;
@@ -17,31 +18,33 @@ function toNote(row) {
     truncated: text.length > PREVIEW_CHARS,
     author: row.author || "Anonymous",
     mood: row.mood || "unspoken",
+    status: row.status || "approved",
     createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
   };
 }
 
 /**
- * The wall payload. Cached in the Next data cache and invalidated by tag the
- * moment somebody pins a new confession, so reads are free until the wall
- * actually changes.
+ * The wall payload — approved confessions only. Cached in the Next data cache
+ * and invalidated by tag the moment the wall actually changes, so reads are
+ * free in between.
  */
 export const getWall = unstable_cache(
   async () => {
     await ensureSchema();
     const rows = await sql`
-      SELECT id, title, text, author, mood, "createdAt"
+      SELECT id, title, text, author, mood, status, "createdAt"
       FROM confessions
+      WHERE status = 'approved'
       ORDER BY "createdAt" DESC
       LIMIT ${WALL_LIMIT}
     `;
     return rows.map(toNote);
   },
-  ["wall", `v1:${WALL_LIMIT}`],
+  ["wall", `v2:${WALL_LIMIT}`],
   { revalidate: 300, tags: [WALL_TAG] }
 );
 
-/** Paginated + searchable feed behind /api/confessions. */
+/** Paginated + searchable feed behind /api/confessions. Approved only. */
 export async function listConfessions({ limit = 24, offset = 0, search = "" } = {}) {
   await ensureSchema();
   const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), 100);
@@ -50,17 +53,19 @@ export async function listConfessions({ limit = 24, offset = 0, search = "" } = 
 
   const rows = term
     ? await sql`
-        SELECT id, title, text, author, mood, "createdAt", COUNT(*) OVER()::int AS total
+        SELECT id, title, text, author, mood, status, "createdAt", COUNT(*) OVER()::int AS total
         FROM confessions
-        WHERE title ILIKE ${"%" + term + "%"}
-           OR text  ILIKE ${"%" + term + "%"}
-           OR author ILIKE ${"%" + term + "%"}
+        WHERE status = 'approved'
+          AND (title ILIKE ${"%" + term + "%"}
+            OR text  ILIKE ${"%" + term + "%"}
+            OR author ILIKE ${"%" + term + "%"})
         ORDER BY "createdAt" DESC
         LIMIT ${safeLimit} OFFSET ${safeOffset}
       `
     : await sql`
-        SELECT id, title, text, author, mood, "createdAt", COUNT(*) OVER()::int AS total
+        SELECT id, title, text, author, mood, status, "createdAt", COUNT(*) OVER()::int AS total
         FROM confessions
+        WHERE status = 'approved'
         ORDER BY "createdAt" DESC
         LIMIT ${safeLimit} OFFSET ${safeOffset}
       `;
@@ -80,7 +85,9 @@ export async function getConfession(id) {
   const numeric = Number(id);
   if (!Number.isInteger(numeric) || numeric < 1) return null;
   const [row] = await sql`
-    SELECT id, title, text, author, mood, "createdAt" FROM confessions WHERE id = ${numeric}
+    SELECT id, title, text, author, mood, status, "createdAt"
+    FROM confessions
+    WHERE id = ${numeric} AND status = 'approved'
   `;
   return row ? toNote(row) : null;
 }
@@ -88,9 +95,9 @@ export async function getConfession(id) {
 export async function insertConfession({ title, text, author, mood, ipHash }) {
   await ensureSchema();
   const [row] = await sql`
-    INSERT INTO confessions (title, text, author, mood, ip_hash)
-    VALUES (${title}, ${text}, ${author}, ${mood}, ${ipHash})
-    RETURNING id, title, text, author, mood, "createdAt"
+    INSERT INTO confessions (title, text, author, mood, ip_hash, status)
+    VALUES (${title}, ${text}, ${author}, ${mood}, ${ipHash}, 'pending')
+    RETURNING id, title, text, author, mood, status, "createdAt"
   `;
   return toNote(row);
 }
@@ -106,4 +113,53 @@ export async function recentWritesFor(ipHash, minutes = 10) {
       AND "createdAt" > now() - (${minutes} * INTERVAL '1 minute')
   `;
   return row?.n ?? 0;
+}
+
+/* ────────────────────────────── the desk ──────────────────────────────────
+   Everything below is admin-only and deliberately uncached: the desk must
+   always show the real state of the database, never a five-minute-old copy.
+   ------------------------------------------------------------------------ */
+
+export async function listForDesk(status) {
+  await ensureSchema();
+  const wanted = status === "approved" ? "approved" : "pending";
+  const rows = await sql`
+    SELECT id, title, text, author, mood, status, "createdAt"
+    FROM confessions
+    WHERE status = ${wanted}
+    ORDER BY "createdAt" DESC
+    LIMIT ${DESK_LIMIT}
+  `;
+  return rows.map(toNote);
+}
+
+export async function deskCounts() {
+  await ensureSchema();
+  const [row] = await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'pending')::int  AS pending,
+      COUNT(*) FILTER (WHERE status = 'approved')::int AS approved
+    FROM confessions
+  `;
+  return { pending: row?.pending ?? 0, approved: row?.approved ?? 0 };
+}
+
+export async function setConfessionStatus(id, status) {
+  await ensureSchema();
+  const numeric = Number(id);
+  if (!Number.isInteger(numeric) || numeric < 1) return null;
+  if (status !== "approved" && status !== "pending") return null;
+  const [row] = await sql`
+    UPDATE confessions SET status = ${status} WHERE id = ${numeric}
+    RETURNING id, title, text, author, mood, status, "createdAt"
+  `;
+  return row ? toNote(row) : null;
+}
+
+export async function deleteConfession(id) {
+  await ensureSchema();
+  const numeric = Number(id);
+  if (!Number.isInteger(numeric) || numeric < 1) return false;
+  const rows = await sql`DELETE FROM confessions WHERE id = ${numeric} RETURNING id`;
+  return rows.length > 0;
 }

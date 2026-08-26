@@ -133,54 +133,19 @@ export function Cross({ size = 16, className = "" }) {
   );
 }
 
-export function Target({ size = 18, className = "" }) {
+export function Caret({ size = 16, direction = "right", className = "" }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 20 20"
+      viewBox="0 0 16 16"
       className={className}
       aria-hidden="true"
       focusable="false"
+      style={direction === "left" ? { transform: "scaleX(-1)" } : undefined}
     >
       <g {...stroke}>
-        <circle cx="10" cy="10" r="6.4" />
-        <circle cx="10" cy="10" r="1.5" />
-        <path d="M10 1v2.2M10 16.8V19M1 10h2.2M16.8 10H19" />
-      </g>
-    </svg>
-  );
-}
-
-export function Expand({ size = 18, className = "" }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 20 20"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g {...stroke}>
-        <path d="M8 2.5H2.5V8M12 2.5h5.5V8M8 17.5H2.5V12M12 17.5h5.5V12" />
-      </g>
-    </svg>
-  );
-}
-
-export function Collapse({ size = 18, className = "" }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 20 20"
-      className={className}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g {...stroke}>
-        <path d="M2.5 7.5H8V2M17.5 7.5H12V2M2.5 12.5H8V18M17.5 12.5H12V18" />
+        <path d="m6 3.5 5 4.5-5 4.5" />
       </g>
     </svg>
   );

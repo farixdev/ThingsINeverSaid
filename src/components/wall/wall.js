@@ -6,13 +6,12 @@ import {
   DEPTHS,
   buildWallLayout,
   cameraFor,
-  clampZoom,
   collectVisible,
   easeInOutQuint,
   layerTransform,
   nearestCopy,
 } from "@/lib/wall-layout";
-import { Collapse, Cross, Expand, Glass, Sprig, Target } from "@/components/marks";
+import { Caret, Cross, Glass, Sprig } from "@/components/marks";
 import { moodOf } from "@/lib/moods";
 import PinnedPiece from "./pinned-piece";
 import Reader from "./reader";
@@ -20,13 +19,25 @@ import Reader from "./reader";
 /* Tuning. Everything about how the wall feels lives in these numbers. */
 const FRICTION = 0.935; // how quickly a throw runs out of road
 const MIN_VELOCITY = 0.02; // below this the wall is considered still
-const DRAG_SLOP = 6; // px of movement before a click stops being a click
+const DRAG_SLOP = 6; // px of movement before a drag stops being a tap
 const IDLE_AFTER = 6500; // ms of stillness before the wall starts drifting
 const DRIFT_SPEED = 0.22; // px per frame of that drift
 const RECOMPUTE_DISTANCE = 130; // world px of travel before re-culling
 const FLIGHT_MS = 950;
-const OVERVIEW_ZOOM = 0.42;
 const MAX_TILT = 0.55; // degrees the plane leans at full speed
+
+/*
+  There is no zoom. The scale is derived from the viewport and left alone — a
+  fixed scale keeps every note crisp, keeps the whole plane on the compositor,
+  and means dragging never triggers a re-raster.
+*/
+const REFERENCE_WIDTH = 1500;
+const MIN_SCALE = 0.66;
+const MAX_SCALE = 1;
+
+function scaleFor(width) {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, width / REFERENCE_WIDTH));
+}
 
 /* useLayoutEffect has nothing to do during SSR, and React says so loudly. */
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -64,42 +75,42 @@ export default function Wall({ notes, letters, petals = [] }) {
   const camera = useRef({ x: layout.tileW / 2, y: layout.tileH / 2, z: 1 });
   const velocity = useRef({ x: 0, y: 0 });
   const viewport = useRef({ w: 1440, h: 900 });
-  const pointers = useRef(new Map());
-  const drag = useRef({ active: false, moved: 0, lastX: 0, lastY: 0, pinch: 0 });
+  const drag = useRef({ active: false, moved: 0, lastX: 0, lastY: 0 });
   const swallowClicksUntil = useRef(0);
   const flight = useRef(null);
   const lastTouch = useRef(0);
   const lastCull = useRef({ x: Infinity, y: Infinity, z: 1 });
   const layoutRef = useRef(layout);
-  const matchCursor = useRef(0);
   const calm = useRef(false);
   const tilt = useRef(0);
   const dragLean = useRef(0);
-  const sized = useRef(false);
 
   const [bands, setBands] = useState(() => [[], [], []]);
   const [reading, setReading] = useState(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [overview, setOverview] = useState(false);
+  const [matchIndex, setMatchIndex] = useState(0);
   const [moved, setMoved] = useState(false);
 
   /* ---------------------------------------------------------------- search */
 
-  const matches = useMemo(() => {
+  const matchList = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return null;
-    const hits = new Set();
-    for (const cell of layout.cells) {
-      if (cell.piece.kind === "petal") continue;
+    return layout.cells.filter((cell) => {
+      if (cell.piece.kind === "petal") return false;
       const d = cell.piece.data;
       const haystack = `${d.title ?? ""} ${d.text ?? d.line ?? ""} ${d.author ?? ""} ${
         moodOf(d.mood).label
       }`;
-      if (haystack.toLowerCase().includes(term)) hits.add(cell.key);
-    }
-    return hits;
+      return haystack.toLowerCase().includes(term);
+    });
   }, [query, layout]);
+
+  const matchKeys = useMemo(
+    () => (matchList ? new Set(matchList.map((cell) => cell.key)) : null),
+    [matchList]
+  );
 
   /* ------------------------------------------------------------ the engine */
 
@@ -110,29 +121,26 @@ export default function Wall({ notes, letters, petals = [] }) {
       !force &&
       Math.abs(cam.x - last.x) < RECOMPUTE_DISTANCE &&
       Math.abs(cam.y - last.y) < RECOMPUTE_DISTANCE &&
-      Math.abs(cam.z - last.z) < 0.02
+      cam.z === last.z
     ) {
       return;
     }
     lastCull.current = { ...cam };
-    const next = DEPTHS.map((_, index) =>
-      collectVisible(layoutRef.current, index, cam, viewport.current)
+    setBands(
+      DEPTHS.map((_, index) => collectVisible(layoutRef.current, index, cam, viewport.current))
     );
-    setBands(next);
   }, []);
 
   const paint = useCallback(() => {
     const cam = camera.current;
     for (let i = 0; i < 3; i += 1) {
       const node = layerRefs.current[i];
-      if (node) {
-        node.style.transform = layerTransform(i, cam, viewport.current, tilt.current);
-      }
+      if (node) node.style.transform = layerTransform(i, cam, viewport.current, tilt.current);
     }
   }, []);
 
-  /* Place the layers before the browser paints, so nothing ever flashes at
-     its raw world coordinates while waiting for the first frame. */
+  /* Place the layers before the browser paints, so nothing ever flashes at its
+     raw world coordinates while waiting for the first frame. */
   useIsomorphicLayoutEffect(paint);
 
   useEffect(() => {
@@ -150,7 +158,6 @@ export default function Wall({ notes, letters, petals = [] }) {
         const e = easeInOutQuint(t);
         cam.x = from.x + (to.x - from.x) * e;
         cam.y = from.y + (to.y - from.y) * e;
-        cam.z = from.z + (to.z - from.z) * e;
         if (t >= 1) flight.current = null;
       } else if (!drag.current.active) {
         const vel = velocity.current;
@@ -200,13 +207,13 @@ export default function Wall({ notes, letters, petals = [] }) {
   /* Somebody who asked for less motion gets a wall that only moves when they
      move it. */
   useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => {
-      calm.current = query.matches;
+      calm.current = media.matches;
     };
     sync();
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
   }, []);
 
   useEffect(() => {
@@ -215,11 +222,8 @@ export default function Wall({ notes, letters, petals = [] }) {
     const measure = () => {
       const rect = node.getBoundingClientRect();
       viewport.current = { w: rect.width, h: rect.height };
-      if (!sized.current) {
-        // Narrow screens start pulled back so the wall still reads as a wall.
-        sized.current = true;
-        camera.current.z = clampZoom(Math.min(1, Math.max(0.66, rect.width / 1500)));
-      }
+      // The scale is a function of the viewport and nothing else.
+      camera.current.z = scaleFor(rect.width);
       cull(true);
     };
     measure();
@@ -237,47 +241,29 @@ export default function Wall({ notes, letters, petals = [] }) {
 
   const flyTo = useCallback((target) => {
     if (calm.current) {
-      camera.current = { ...target };
+      camera.current.x = target.x;
+      camera.current.y = target.y;
       velocity.current = { x: 0, y: 0 };
       return;
     }
     flight.current = {
       from: { ...camera.current },
-      to: { ...target },
+      to: target,
       start: performance.now(),
     };
     velocity.current = { x: 0, y: 0 };
   }, []);
 
-  const zoomAround = useCallback((clientX, clientY, factor) => {
-    const cam = camera.current;
-    const { w, h } = viewport.current;
-    const next = clampZoom(cam.z * factor);
-    if (next === cam.z) return;
-    const offX = clientX - w / 2;
-    const offY = clientY - h / 2;
-    // Hold the point under the cursor still while the scale changes.
-    cam.x += offX / cam.z - offX / next;
-    cam.y += offY / cam.z - offY / next;
-    cam.z = next;
-  }, []);
-
   const onPointerDown = (event) => {
     if (event.button !== undefined && event.button !== 0) return;
+    if (!event.isPrimary) return;
     wake();
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()];
-      drag.current.pinch = Math.hypot(a.x - b.x, a.y - b.y);
-      drag.current.active = false;
-      return;
-    }
     drag.current.active = true;
     drag.current.moved = 0;
-    wallRef.current?.setAttribute("data-dragging", "true");
     drag.current.lastX = event.clientX;
     drag.current.lastY = event.clientY;
     velocity.current = { x: 0, y: 0 };
+    wallRef.current?.setAttribute("data-dragging", "true");
     wallRef.current?.setPointerCapture?.(event.pointerId);
   };
 
@@ -286,20 +272,8 @@ export default function Wall({ notes, letters, petals = [] }) {
       glowRef.current.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0)`;
       wallRef.current?.setAttribute("data-pointer", "true");
     }
-    if (!pointers.current.has(event.pointerId)) return;
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (!drag.current.active || !event.isPrimary) return;
     wake();
-
-    if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()];
-      const spread = Math.hypot(a.x - b.x, a.y - b.y);
-      if (drag.current.pinch > 0) {
-        zoomAround((a.x + b.x) / 2, (a.y + b.y) / 2, spread / drag.current.pinch);
-      }
-      drag.current.pinch = spread;
-      return;
-    }
-    if (!drag.current.active) return;
 
     const cam = camera.current;
     const dx = event.clientX - drag.current.lastX;
@@ -318,15 +292,13 @@ export default function Wall({ notes, letters, petals = [] }) {
   };
 
   /**
-   * The wall holds pointer capture while you drag, and a captured pointer
-   * sends its `click` to the capturing element rather than the button that was
+   * The wall holds pointer capture while you drag, and a captured pointer sends
+   * its `click` to the capturing element rather than the button that was
    * pressed — so a tap is resolved here, from what is actually under the
    * pointer when it lifts.
    */
   const openAt = (clientX, clientY) => {
-    const target = document
-      .elementFromPoint(clientX, clientY)
-      ?.closest?.("[data-piece]");
+    const target = document.elementFromPoint(clientX, clientY)?.closest?.("[data-piece]");
     const key = target?.dataset?.piece;
     if (!key) return;
     const cell = layoutRef.current.cells.find((c) => c.key === key);
@@ -337,19 +309,15 @@ export default function Wall({ notes, letters, petals = [] }) {
   };
 
   const endPointer = (event) => {
-    const wasDragging = drag.current.active;
-    pointers.current.delete(event.pointerId);
-    if (pointers.current.size < 2) drag.current.pinch = 0;
-    if (pointers.current.size === 0) {
-      const tapped = wasDragging && drag.current.moved <= DRAG_SLOP;
-      drag.current.active = false;
-      wallRef.current?.removeAttribute("data-dragging");
-      if (tapped && event.type === "pointerup") {
-        openAt(event.clientX, event.clientY);
-      } else if (!tapped) {
-        // A throw shouldn't also open whatever was under the finger.
-        swallowClicksUntil.current = performance.now() + 300;
-      }
+    if (!drag.current.active) return;
+    const tapped = drag.current.moved <= DRAG_SLOP;
+    drag.current.active = false;
+    wallRef.current?.removeAttribute("data-dragging");
+    if (tapped && event.type === "pointerup") {
+      openAt(event.clientX, event.clientY);
+    } else if (!tapped) {
+      // A throw shouldn't also open whatever was under the finger.
+      swallowClicksUntil.current = performance.now() + 300;
     }
     lastTouch.current = performance.now();
   };
@@ -358,57 +326,51 @@ export default function Wall({ notes, letters, petals = [] }) {
     const node = wallRef.current;
     if (!node) return;
     const onWheel = (event) => {
+      // No zoom — a wheel or trackpad gesture only ever pans.
       event.preventDefault();
       wake();
-      if (event.ctrlKey || event.metaKey) {
-        zoomAround(event.clientX, event.clientY, Math.exp(-event.deltaY * 0.0024));
-      } else {
-        const cam = camera.current;
-        const step = event.deltaMode === 1 ? 18 : 1;
-        cam.x += (event.deltaX * step) / cam.z;
-        cam.y += (event.deltaY * step) / cam.z;
-        velocity.current = { x: 0, y: 0 };
-        if (!moved) setMoved(true);
-      }
+      const cam = camera.current;
+      const step = event.deltaMode === 1 ? 18 : 1;
+      cam.x += (event.deltaX * step) / cam.z;
+      cam.y += (event.deltaY * step) / cam.z;
+      velocity.current = { x: 0, y: 0 };
+      if (!moved) setMoved(true);
     };
     node.addEventListener("wheel", onWheel, { passive: false });
     return () => node.removeEventListener("wheel", onWheel);
-  }, [zoomAround, moved]);
+  }, [moved]);
 
-  /* ------------------------------------------------------------- keyboard */
+  /* ------------------------------------------------------------- searching */
 
-  const goToNextMatch = useCallback(() => {
-    if (!matches?.size) return;
-    const cells = layoutRef.current.cells.filter((cell) => matches.has(cell.key));
-    if (!cells.length) return;
-    const cell = cells[matchCursor.current % cells.length];
-    matchCursor.current += 1;
-    const copy = nearestCopy(layoutRef.current, cell, camera.current);
-    flyTo(cameraFor(cell.depth, copy, Math.max(camera.current.z, 0.9)));
-    setMoved(true);
-  }, [matches, flyTo]);
+  const goToMatch = useCallback(
+    (index) => {
+      const list = matchList;
+      if (!list?.length) return;
+      const wrapped = ((index % list.length) + list.length) % list.length;
+      const cell = list[wrapped];
+      const copy = nearestCopy(layoutRef.current, cell, camera.current);
+      const target = cameraFor(cell.depth, copy, camera.current.z);
+      setMatchIndex(wrapped);
+      flyTo({ x: target.x, y: target.y });
+      setMoved(true);
+    },
+    [matchList, flyTo]
+  );
 
   /* Stop typing for a beat and the wall walks you to the first match. */
   useEffect(() => {
-    if (!matches?.size) return undefined;
-    const timer = setTimeout(() => {
-      matchCursor.current = 0;
-      goToNextMatch();
-    }, 700);
+    if (!matchList?.length) return undefined;
+    const timer = setTimeout(() => goToMatch(0), 700);
     return () => clearTimeout(timer);
-  }, [matches, goToNextMatch]);
+  }, [matchList, goToMatch]);
 
-  const recentre = useCallback(() => {
-    setOverview(false);
-    flyTo({ x: layoutRef.current.tileW / 2, y: layoutRef.current.tileH / 2, z: 1 });
-  }, [flyTo]);
+  const closeSearch = useCallback(() => {
+    setQuery("");
+    setMatchIndex(0);
+    setSearchOpen(false);
+  }, []);
 
-  const toggleOverview = useCallback(() => {
-    setOverview((was) => {
-      flyTo({ ...camera.current, z: was ? 1 : OVERVIEW_ZOOM });
-      return !was;
-    });
-  }, [flyTo]);
+  /* ------------------------------------------------------------- keyboard */
 
   useEffect(() => {
     const onKey = (event) => {
@@ -439,19 +401,13 @@ export default function Wall({ notes, letters, petals = [] }) {
       if (moves[event.key]) {
         event.preventDefault();
         wake();
-        flyTo({ x: cam.x + moves[event.key][0], y: cam.y + moves[event.key][1], z: cam.z });
+        flyTo({ x: cam.x + moves[event.key][0], y: cam.y + moves[event.key][1] });
         setMoved(true);
-      } else if (event.key === "+" || event.key === "=") {
-        zoomAround(viewport.current.w / 2, viewport.current.h / 2, 1.25);
-      } else if (event.key === "-" || event.key === "_") {
-        zoomAround(viewport.current.w / 2, viewport.current.h / 2, 0.8);
-      } else if (event.key === "0") {
-        recentre();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flyTo, query, reading, recentre, zoomAround]);
+  }, [flyTo, query, reading]);
 
   /* ---------------------------------------------------------------- render */
 
@@ -461,6 +417,7 @@ export default function Wall({ notes, letters, petals = [] }) {
   };
 
   const hasWall = pieces.length > 0;
+  const matchCount = matchList?.length ?? 0;
 
   return (
     <>
@@ -492,7 +449,7 @@ export default function Wall({ notes, letters, petals = [] }) {
             >
               {bands[index].map((item) => {
                 const decorative = item.cell.piece.kind === "petal";
-                const hit = matches && !decorative ? matches.has(item.cell.key) : null;
+                const hit = matchKeys && !decorative ? matchKeys.has(item.cell.key) : null;
                 return (
                   <div
                     key={item.id}
@@ -555,11 +512,12 @@ export default function Wall({ notes, letters, petals = [] }) {
           <button
             className="dock-btn"
             onClick={() => {
-              setSearchOpen((open) => {
-                if (open) setQuery("");
-                else requestAnimationFrame(() => searchRef.current?.focus());
-                return !open;
-              });
+              if (searchOpen) {
+                closeSearch();
+              } else {
+                setSearchOpen(true);
+                requestAnimationFrame(() => searchRef.current?.focus());
+              }
             }}
             data-active={searchOpen ? "true" : undefined}
             aria-label={searchOpen ? "Close search" : "Search the wall"}
@@ -574,12 +532,12 @@ export default function Wall({ notes, letters, petals = [] }) {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              matchCursor.current = 0;
+              setMatchIndex(0);
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                goToNextMatch();
+                goToMatch(matchIndex + (event.shiftKey ? -1 : 1));
               }
             }}
             placeholder="find a feeling…"
@@ -587,31 +545,34 @@ export default function Wall({ notes, letters, petals = [] }) {
             tabIndex={searchOpen ? 0 : -1}
           />
 
-          {matches && (
-            <button className="dock-count" onClick={goToNextMatch} type="button">
-              {matches.size === 0
-                ? "nothing"
-                : `${matches.size} found — enter`}
-            </button>
+          {matchList && (
+            <span className="dock-count" role="status">
+              {matchCount === 0 ? "nothing" : `${matchIndex + 1} / ${matchCount}`}
+            </span>
+          )}
+
+          {matchCount > 1 && (
+            <>
+              <button
+                className="dock-btn"
+                onClick={() => goToMatch(matchIndex - 1)}
+                aria-label="Previous result"
+              >
+                <Caret direction="left" />
+              </button>
+              <button
+                className="dock-btn"
+                onClick={() => goToMatch(matchIndex + 1)}
+                aria-label="Next result"
+              >
+                <Caret direction="right" />
+              </button>
+            </>
           )}
 
           <span className="dock-sep" />
 
-          <button className="dock-btn" onClick={recentre} aria-label="Back to the middle">
-            <Target />
-          </button>
-          <button
-            className="dock-btn"
-            onClick={toggleOverview}
-            data-active={overview ? "true" : undefined}
-            aria-label={overview ? "Come closer" : "See the whole wall"}
-          >
-            {overview ? <Expand /> : <Collapse />}
-          </button>
-
-          <span className="dock-sep" />
-
-          <Link className="dock-btn" href="/write" aria-label="Write something">
+          <Link className="dock-btn" href="/write">
             <span className="text-[0.6875rem] tracking-[0.16em] uppercase">Write</span>
           </Link>
         </div>

@@ -28,10 +28,11 @@ addictive was left out on purpose.
 through in any direction.
 
 - **Drag anywhere** to move. Let go and it carries, then settles.
-- **Scroll or trackpad-swipe** to pan; **⌘/Ctrl + scroll** or **pinch** to zoom.
-- **Arrow keys** to move, `+` / `-` to zoom, `0` to return to the middle.
+- **Scroll or trackpad-swipe** to pan; **arrow keys** work too.
 - **`/`** to search. Everything that doesn't match dims away, the wall flies to
-  the first match on its own, and `Enter` steps through the rest.
+  the first match on its own, and `‹` `›` (or `Enter`) step through the rest.
+- There is **no zoom**. The scale is derived from the viewport once and left
+  alone, which keeps the type crisp and the whole plane on the compositor.
 - Leave it alone for a few seconds and it **drifts by itself**, like weather.
 - Everything **fades with distance** — near the edges of your attention, paper
   dissolves back into the page.
@@ -50,11 +51,13 @@ Nothing about it is a library. It's `src/lib/wall-layout.js` and
 npm install
 ```
 
-Copy `.env.example` to `.env.local` and paste your Neon connection string:
+Copy `.env.example` to `.env.local` and fill it in:
 
 ```
 DATABASE_URL="postgresql://user:password@ep-xxxx-pooler.region.aws.neon.tech/neondb?sslmode=require"
 IP_SALT="any-long-random-string"
+ADMIN_USER="admin"
+ADMIN_PASSWORD="something-long"
 ```
 
 Then:
@@ -73,10 +76,25 @@ npm run seed
 `npm run seed:clear` removes only the seeded rows and never touches anything a
 real person wrote.
 
+## Moderation
+
+Nothing appears on the wall on its own. A new confession is stored as
+`pending`, and the writer is told it will go up once somebody has read it.
+
+**`/admin`** is the desk. Sign in with `ADMIN_USER` / `ADMIN_PASSWORD` and you
+get two lists — **Waiting** and **On the wall** — with the full text of each
+note and three actions: put it on the wall, take it back down, or delete it for
+good (behind a confirm). Every change invalidates the wall cache immediately,
+so approving a note puts it up on the next page load.
+
+The session is a signed, http-only cookie that lasts 12 hours. It carries no
+privileges of its own: every action re-checks the session server-side before
+touching a row. Changing `ADMIN_PASSWORD` invalidates every existing session.
+
 ## Deploying
 
-Import the repo on [Vercel](https://vercel.com), add `DATABASE_URL` and
-`IP_SALT` as environment variables, and deploy. There is no other service and no
+Import the repo on [Vercel](https://vercel.com), add `DATABASE_URL`, `IP_SALT`,
+`ADMIN_USER` and `ADMIN_PASSWORD` as environment variables, and deploy. There is no other service and no
 separate backend — the whole app is one Next.js project.
 
 Optionally set `NEXT_PUBLIC_SITE_URL` to your final domain (`https://example.com`)
@@ -89,10 +107,12 @@ the build.
 
 | | |
 |---|---|
-| **Pages** | `/` home, `/read` the wall, `/write` compose, `/about` the only page that scrolls |
+| **Pages** | `/` home, `/read` the wall, `/write` compose, `/about` the only page that scrolls, `/admin` the moderation desk |
 | **Data** | One `confessions` table on Neon, reached over HTTP with `@neondatabase/serverless` |
 | **Reads** | Server Components + `unstable_cache`, tagged `wall`, revalidated every 5 minutes |
 | **Writes** | A React Server Action — no client-side API layer, no fetch, no loading spinner |
+| **Moderation** | Confessions land as `pending` and only reach the wall once approved at `/admin` |
+| **Admin auth** | A single account from the environment, held in an HMAC-signed http-only cookie; no user table, no dependency |
 | **Invalidation** | `revalidateTag("wall")` on every new confession, so the wall is rebuilt exactly when it changes and never otherwise |
 | **Public API** | `GET /api/confessions?limit=&offset=&search=` with `stale-while-revalidate` |
 | **Abuse** | A honeypot field, length limits, and a rate limit keyed on a salted one-way hash of the writer's IP |
@@ -114,6 +134,7 @@ src/
 │   ├── read/page.js       the wall
 │   ├── write/page.js      compose
 │   ├── about/page.js      the one page that scrolls
+│   ├── admin/             the moderation desk
 │   ├── api/confessions/   public read API
 │   └── *.css              design tokens, wall, forms
 ├── components/
@@ -125,6 +146,8 @@ src/
     ├── db.js              Neon client + schema bootstrap
     ├── confessions.js     cached queries
     ├── actions.js         the server action that writes
+    ├── auth.js            the signed admin session
+    ├── admin-actions.js   approve, take down, delete
     └── wall-layout.js     the scatter, tiling and culling maths
 ```
 

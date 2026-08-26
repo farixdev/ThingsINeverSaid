@@ -73,7 +73,7 @@ export async function submitConfession(_prevState, formData) {
   try {
     const note = await insertConfession({ title, text, author, mood, ipHash });
     revalidateTag(WALL_TAG);
-    return { ok: true, message: "It's on the wall.", field: null, id: note.id };
+    return { ok: true, message: "Sent. It goes up once it's been read.", field: null, id: note.id };
   } catch (error) {
     console.error("submitConfession failed:", error);
     return fail("The wall didn't take it. Try once more in a moment.");

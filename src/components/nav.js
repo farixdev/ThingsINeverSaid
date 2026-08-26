@@ -13,6 +13,9 @@ const LINKS = [
 export default function Nav() {
   const pathname = usePathname();
 
+  // The desk is a different room; it carries its own header.
+  if (pathname?.startsWith("/admin")) return null;
+
   return (
     <header className="fixed inset-x-0 top-0 z-40 pointer-events-none">
       <div className="nav-scrim" aria-hidden="true" />

@@ -312,8 +312,8 @@ async function main() {
     const daysAgo = Math.round(((CONFESSIONS.length - i) / CONFESSIONS.length) * 150 + (i % 7));
     const when = new Date(now - daysAgo * 86400000 - (i % 11) * 3600000);
     await sql`
-      INSERT INTO confessions (title, text, author, mood, ip_hash, "createdAt")
-      VALUES (${c.title}, ${c.text}, ${c.author}, ${c.mood}, ${SEED_MARK}, ${when.toISOString()})
+      INSERT INTO confessions (title, text, author, mood, ip_hash, status, "createdAt")
+      VALUES (${c.title}, ${c.text}, ${c.author}, ${c.mood}, ${SEED_MARK}, 'approved', ${when.toISOString()})
     `;
     written += 1;
   }
