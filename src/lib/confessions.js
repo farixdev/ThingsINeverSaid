@@ -3,7 +3,6 @@ import { sql, ensureSchema } from "./db";
 
 export const WALL_TAG = "wall";
 export const WALL_LIMIT = 240;
-export const DESK_LIMIT = 200;
 
 /** How much of a confession the wall shows before you open it. */
 const PREVIEW_CHARS = 220;
@@ -120,30 +119,44 @@ export async function recentWritesFor(ipHash, minutes = 10) {
    always show the real state of the database, never a five-minute-old copy.
    ------------------------------------------------------------------------ */
 
-export async function listForDesk(status, search = "") {
+export const DESK_PAGE = 18;
+
+/**
+ * One page of the desk. Returns the total alongside the rows so the client
+ * knows whether to keep asking for more as it scrolls.
+ */
+export async function pageForDesk({ status, search = "", limit = DESK_PAGE, offset = 0 } = {}) {
   await ensureSchema();
   const wanted = status === "approved" ? "approved" : "pending";
+  const safeLimit = Math.min(Math.max(Number(limit) || DESK_PAGE, 1), 60);
+  const safeOffset = Math.max(Number(offset) || 0, 0);
   const term = String(search || "").trim();
 
   const rows = term
     ? await sql`
-        SELECT id, title, text, author, mood, status, "createdAt"
+        SELECT id, title, text, author, mood, status, "createdAt", COUNT(*) OVER()::int AS total
         FROM confessions
         WHERE status = ${wanted}
           AND (title ILIKE ${"%" + term + "%"}
             OR text  ILIKE ${"%" + term + "%"}
             OR author ILIKE ${"%" + term + "%"})
-        ORDER BY "createdAt" DESC
-        LIMIT ${DESK_LIMIT}
+        ORDER BY "createdAt" DESC, id DESC
+        LIMIT ${safeLimit} OFFSET ${safeOffset}
       `
     : await sql`
-        SELECT id, title, text, author, mood, status, "createdAt"
+        SELECT id, title, text, author, mood, status, "createdAt", COUNT(*) OVER()::int AS total
         FROM confessions
         WHERE status = ${wanted}
-        ORDER BY "createdAt" DESC
-        LIMIT ${DESK_LIMIT}
+        ORDER BY "createdAt" DESC, id DESC
+        LIMIT ${safeLimit} OFFSET ${safeOffset}
       `;
-  return rows.map(toNote);
+
+  const total = rows[0]?.total ?? 0;
+  return {
+    data: rows.map(toNote),
+    total,
+    hasMore: safeOffset + rows.length < total,
+  };
 }
 
 /**

@@ -87,12 +87,21 @@ note and three actions: put it on the wall, take it back down, or delete it for
 good (behind a confirm). Every change invalidates the wall cache immediately,
 so approving a note puts it up on the next page load.
 
+Both lists are a **grid** that loads eighteen at a time and pulls the next page
+as you reach the bottom, with shimmering placeholders while a page is in
+flight. Fetched pages are held in memory and keyed to a generation counter, so
+flipping between the two tabs is instant and the cache is dropped the moment
+anything underneath changes.
+
 The desk **updates itself**. An open tab polls a counts-only endpoint every six
-seconds and pulls fresh data only when the numbers actually move, so a new
-confession appears without a manual refresh. A dot beside the heading shows the
-heartbeat is alive. Both lists are **searchable** across title, body and
-signature. **Rebuild wall** forces the wall cache to be rebuilt — only needed
-if the database was changed from outside the app.
+seconds and pulls fresh rows only when the numbers actually move — in place,
+without a page reload, so nobody loses their scroll position. If you are
+scrolled down it offers the new arrival instead of moving things under your
+cursor. A dot beside the heading shows the heartbeat is alive.
+
+Both lists are **searchable** across title, body and signature, server-side and
+reflected in the URL. **Rebuild wall** forces the wall cache to be rebuilt —
+only needed if the database was changed from outside the app.
 
 The session is a signed, http-only cookie that lasts 12 hours. It carries no
 privileges of its own: every action re-checks the session server-side before

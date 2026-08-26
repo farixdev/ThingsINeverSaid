@@ -327,6 +327,116 @@
   color: var(--ink);
 }
 
+.desk-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  align-items: stretch;
+}
+
+.desk-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.15rem 1.25rem 1.1rem;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(172deg, #fffdfa 0%, #faf6ee 100%);
+  box-shadow:
+    0 1px 1px rgba(60, 44, 36, 0.04),
+    0 12px 24px -18px rgba(60, 44, 36, 0.5);
+  transition: box-shadow 0.4s var(--ease), opacity 0.3s linear;
+}
+
+.desk-card:hover {
+  box-shadow:
+    0 2px 3px rgba(60, 44, 36, 0.05),
+    0 22px 36px -22px rgba(60, 44, 36, 0.55);
+}
+
+.desk-card[data-busy] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.desk-card-ghost {
+  pointer-events: none;
+  min-height: 13.5rem;
+}
+
+.desk-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 0.2rem;
+}
+
+.desk-card-body {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.desk-card-body.is-open {
+  display: block;
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.4rem;
+}
+
+.desk-card-body.is-open::-webkit-scrollbar {
+  width: 5px;
+}
+
+.desk-card-body.is-open::-webkit-scrollbar-thumb {
+  background: rgba(33, 28, 25, 0.16);
+  border-radius: 999px;
+}
+
+.desk-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.new-pill {
+  display: block;
+  margin: 0 auto 1.5rem;
+  padding: 0.55rem 1.2rem;
+  border: 1px solid rgba(169, 99, 93, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 253, 250, 0.9);
+  color: var(--rose);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: var(--shadow-lift);
+  animation: rise 0.5s var(--ease) both;
+}
+
+.new-pill:hover {
+  background: #fff;
+}
+
 /* the heartbeat behind the automatic refresh */
 .pulse-dot {
   width: 6px;
