@@ -55,22 +55,6 @@ export default function PinnedPiece({ cell, onOpen, canFocus }) {
     style: { "--mood": mood.color },
   };
 
-  if (piece.kind === "letter") {
-    return (
-      <button
-        {...common}
-        className="paper-piece letter"
-        aria-label={`Hand-lettered piece: ${piece.data.title}`}
-      >
-        <Fastener kind={fastener} color={mood.color} />
-        {/* Hand-lettered SVG: next/image would need dangerouslyAllowSVG and cannot optimise it anyway. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={piece.data.src} alt="" loading="lazy" decoding="async" draggable="false" />
-        <span className="letter-caption">{piece.data.title}</span>
-      </button>
-    );
-  }
-
   const note = piece.data;
   const when = formatWhen(note.createdAt);
   const label = `Confession: ${note.title}`;

@@ -87,6 +87,13 @@ note and three actions: put it on the wall, take it back down, or delete it for
 good (behind a confirm). Every change invalidates the wall cache immediately,
 so approving a note puts it up on the next page load.
 
+The desk **updates itself**. An open tab polls a counts-only endpoint every six
+seconds and pulls fresh data only when the numbers actually move, so a new
+confession appears without a manual refresh. A dot beside the heading shows the
+heartbeat is alive. Both lists are **searchable** across title, body and
+signature. **Rebuild wall** forces the wall cache to be rebuilt — only needed
+if the database was changed from outside the app.
+
 The session is a signed, http-only cookie that lasts 12 hours. It carries no
 privileges of its own: every action re-checks the session server-side before
 touching a row. Changing `ADMIN_PASSWORD` invalidates every existing session.
@@ -117,7 +124,7 @@ the build.
 | **Public API** | `GET /api/confessions?limit=&offset=&search=` with `stale-while-revalidate` |
 | **Abuse** | A honeypot field, length limits, and a rate limit keyed on a salted one-way hash of the writer's IP |
 | **Type** | Instrument Serif, Geist, Caveat — self-hosted through `next/font` |
-| **Art** | Grain, glow, icons and the pressed flowers are generated SVG or optimised through `next/image`; the hand-lettered pieces are original artwork |
+| **Art** | Grain, glow and every icon are SVG drawn in-repo; the pressed flowers are original artwork served through `next/image` |
 
 ### Privacy
 

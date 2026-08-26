@@ -39,11 +39,10 @@ export function mulberry32(seed) {
 const lerp = (a, b, t) => a + (b - a) * t;
 
 /** Sticky notes hold themselves up; everything else needs something. */
-function pickFastener(paper, isLetter, roll) {
+function pickFastener(paper, roll) {
   if (paper === "sticky") return roll < 0.62 ? "none" : roll < 0.86 ? "washi" : "tape";
   if (paper === "scrap") return roll < 0.4 ? "tape" : roll < 0.72 ? "pin" : "washi";
   if (paper === "card") return roll < 0.32 ? "clip" : roll < 0.6 ? "staple" : roll < 0.84 ? "pin" : "tape";
-  if (isLetter) return roll < 0.55 ? "tape" : "pin";
   return ["tape", "washi", "pin", "thread", "clip"][Math.floor(roll * 5)];
 }
 
@@ -72,15 +71,14 @@ export function buildWallLayout(pieces) {
     const col = slot % cols;
     const row = Math.floor(slot / cols);
 
-    const isLetter = piece.kind === "letter";
     const isPetal = piece.kind === "petal";
 
     // What a note is written on depends on how much there is to say: a single
     // line lands on a sticky, a long confession gets a proper sheet.
-    const length = (piece.data?.text ?? piece.data?.line ?? "").length;
+    const length = (piece.data?.text ?? "").length;
     const paperRoll = rand();
     let paper = "slip";
-    if (!isLetter && !isPetal) {
+    if (!isPetal) {
       if (length <= 150) paper = paperRoll < 0.7 ? "sticky" : "scrap";
       else if (length <= 420) paper = paperRoll < 0.4 ? "slip" : paperRoll < 0.68 ? "card" : paperRoll < 0.9 ? "sticky" : "scrap";
       else paper = paperRoll < 0.58 ? "slip" : "card";
@@ -88,9 +86,7 @@ export function buildWallLayout(pieces) {
 
     const width = isPetal
       ? Math.round(lerp(84, 150, rand()))
-      : isLetter
-        ? Math.round(lerp(238, 306, rand()))
-        : paper === "sticky"
+      : paper === "sticky"
           ? Math.round(lerp(152, 198, rand()))
           : paper === "card"
             ? Math.round(lerp(232, 284, rand()))
@@ -102,9 +98,7 @@ export function buildWallLayout(pieces) {
     const y = (row + 0.5) * CELL_H + (rand() - 0.5) * CELL_H * JITTER * 2;
 
     const depthRoll = rand();
-    const depth = isLetter
-      ? 1
-      : isPetal
+    const depth = isPetal
         ? (depthRoll < 0.6 ? 0 : 2)
         : depthRoll < 0.2
           ? 0
@@ -114,9 +108,7 @@ export function buildWallLayout(pieces) {
 
     const height = isPetal
       ? width
-      : isLetter
-        ? width * 0.86
-        : paper === "sticky"
+      : paper === "sticky"
           ? width * 0.94
           : paper === "scrap"
             ? 120 + rand() * 64
@@ -137,7 +129,7 @@ export function buildWallLayout(pieces) {
       enter: Math.round(rand() * 280),
       drift: 5 + rand() * 7,
       driftDelay: -rand() * 14,
-      fastener: pickFastener(paper, isLetter, rand()),
+      fastener: pickFastener(paper, rand()),
     };
   });
 

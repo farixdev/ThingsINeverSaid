@@ -1,22 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Arrow, Cross, Seal } from "@/components/marks";
+import { Arrow, Cross, Glass, Seal } from "@/components/marks";
 import { moodOf } from "@/lib/moods";
 import { formatWhen } from "@/lib/format";
 import {
   approveConfession,
+  refreshWall,
   removeConfession,
   signOut,
   unapproveConfession,
 } from "@/lib/admin-actions";
 
-export default function Desk({ notes, counts, view, error }) {
+const POLL_MS = 6000;
+const SEARCH_DEBOUNCE_MS = 350;
+
+export default function Desk({ notes, pulse, view, search, error }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState(null);
   const [, startTransition] = useTransition();
+  const [term, setTerm] = useState(search);
+  const [live, setLive] = useState(true);
 
   const run = (id, action) => {
     setBusyId(id);
@@ -30,33 +36,147 @@ export default function Desk({ notes, counts, view, error }) {
     });
   };
 
+  /* ---------------------------------------------------------------- search */
+
+  const applySearch = useCallback(
+    (value) => {
+      const params = new URLSearchParams();
+      if (view === "approved") params.set("view", "wall");
+      if (value.trim()) params.set("q", value.trim());
+      const query = params.toString();
+      router.replace(query ? `/admin?${query}` : "/admin", { scroll: false });
+    },
+    [router, view]
+  );
+
+  useEffect(() => {
+    if (term === search) return undefined;
+    const timer = setTimeout(() => applySearch(term), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [term, search, applySearch]);
+
+  /* ------------------------------------------------------------------ live
+     A six-second heartbeat against a counts-only endpoint. It pulls fresh data
+     only when the numbers actually move, so a new confession lands on the desk
+     on its own without hammering the database.
+     ---------------------------------------------------------------------- */
+
+  const signature = useRef(`${pulse.pending}:${pulse.approved}:${pulse.latest}`);
+
+  useEffect(() => {
+    let stopped = false;
+    let timer;
+
+    const beat = async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const res = await fetch("/api/admin/pulse", { cache: "no-store" });
+          if (res.ok) {
+            const next = await res.json();
+            const stamp = `${next.pending}:${next.approved}:${next.latest}`;
+            if (signature.current !== stamp) {
+              signature.current = stamp;
+              router.refresh();
+            }
+            if (!stopped) setLive(true);
+          } else if (res.status === 401) {
+            router.refresh(); // the session expired — fall back to the login form
+            return;
+          }
+        } catch {
+          if (!stopped) setLive(false);
+        }
+      }
+      if (!stopped) timer = setTimeout(beat, POLL_MS);
+    };
+
+    timer = setTimeout(beat, POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [router]);
+
+  /* Keep the heartbeat in step after our own actions change the numbers. */
+  useEffect(() => {
+    signature.current = `${pulse.pending}:${pulse.approved}:${pulse.latest}`;
+  }, [pulse.pending, pulse.approved, pulse.latest]);
+
+  /* ---------------------------------------------------------------- render */
+
+  const searching = Boolean(search.trim());
+
   return (
     <main className="scroll-surface">
       <div className="mx-auto w-full max-w-[52rem] px-5 pb-24 pt-16 sm:px-8 sm:pt-20">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="eyebrow">the desk</p>
+            <p className="eyebrow flex items-center gap-2">
+              the desk
+              <span
+                className="pulse-dot"
+                data-off={live ? undefined : "true"}
+                title={live ? "Updating automatically" : "Not updating — connection lost"}
+              />
+            </p>
             <h1 className="display mt-2 text-[clamp(1.8rem,1.4rem+1.8vw,2.6rem)]">
               What people never said.
             </h1>
           </div>
-          <form action={signOut}>
-            <button type="submit" className="btn btn-ghost">
-              Sign out
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() =>
+                startTransition(async () => {
+                  await refreshWall();
+                  router.refresh();
+                })
+              }
+              title="Rebuild the wall from the database"
+            >
+              Rebuild wall
             </button>
-          </form>
+            <form action={signOut}>
+              <button type="submit" className="btn btn-ghost">
+                Sign out
+              </button>
+            </form>
+          </div>
         </header>
 
-        <nav className="mt-9 flex items-center gap-1 border-b border-[var(--line-soft)]">
-          <DeskTab href="/admin" active={view === "pending"} count={counts.pending}>
+        <nav className="mt-9 flex flex-wrap items-center gap-x-1 gap-y-3 border-b border-[var(--line-soft)]">
+          <DeskTab href={tabHref("pending", search)} active={view === "pending"} count={pulse.pending}>
             Waiting
           </DeskTab>
-          <DeskTab href="/admin?view=wall" active={view === "approved"} count={counts.approved}>
+          <DeskTab href={tabHref("approved", search)} active={view === "approved"} count={pulse.approved}>
             On the wall
           </DeskTab>
+
+          <div className="desk-search ml-auto">
+            <Glass size={15} />
+            <input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="search these…"
+              aria-label="Search confessions"
+              spellCheck={false}
+            />
+            {term && (
+              <button type="button" onClick={() => setTerm("")} aria-label="Clear search">
+                <Cross size={12} />
+              </button>
+            )}
+          </div>
+
           <Link
             href="/read"
-            className="ml-auto pb-3 text-[0.6875rem] uppercase tracking-[0.16em] text-[var(--ink-3)] transition-colors hover:text-[var(--ink)]"
+            className="pb-3 pl-4 text-[0.6875rem] uppercase tracking-[0.16em] text-[var(--ink-3)] transition-colors hover:text-[var(--ink)]"
           >
             View the wall <Arrow size={13} className="ml-1 inline-block align-[-1px]" />
           </Link>
@@ -72,14 +192,22 @@ export default function Desk({ notes, counts, view, error }) {
           <div className="mt-20 text-center">
             <Seal size={40} className="mx-auto text-[var(--rose)] opacity-35" />
             <p className="mt-6 text-[0.95rem] text-[var(--ink-3)]">
-              {view === "pending"
-                ? "Nothing is waiting. Everything written so far has been read."
-                : "Nothing is on the wall yet."}
+              {searching
+                ? `Nothing here matches “${search.trim()}”.`
+                : view === "pending"
+                  ? "Nothing is waiting. Everything written so far has been read."
+                  : "Nothing is on the wall yet."}
             </p>
           </div>
         )}
 
-        <ul className="mt-8 space-y-4">
+        {searching && notes.length > 0 && (
+          <p className="mt-7 text-[0.75rem] uppercase tracking-[0.14em] text-[var(--ink-3)]">
+            {notes.length} matching “{search.trim()}”
+          </p>
+        )}
+
+        <ul className="mt-6 space-y-4">
           {notes.map((note) => (
             <DeskNote
               key={note.id}
@@ -95,12 +223,20 @@ export default function Desk({ notes, counts, view, error }) {
 
         {notes.length >= 200 && (
           <p className="mt-8 text-center text-[0.75rem] text-[var(--ink-3)]">
-            Showing the most recent 200. Clear some of these to see the rest.
+            Showing the most recent 200. Search to reach the rest.
           </p>
         )}
       </div>
     </main>
   );
+}
+
+function tabHref(view, search) {
+  const params = new URLSearchParams();
+  if (view === "approved") params.set("view", "wall");
+  if (search.trim()) params.set("q", search.trim());
+  const query = params.toString();
+  return query ? `/admin?${query}` : "/admin";
 }
 
 function DeskTab({ href, active, count, children }) {
@@ -169,7 +305,12 @@ function DeskNote({ note, view, busy, onApprove, onTakeDown, onDelete }) {
               Put it on the wall
             </button>
           ) : (
-            <button type="button" className="btn btn-sm btn-ghost" onClick={onTakeDown} disabled={busy}>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={onTakeDown}
+              disabled={busy}
+            >
               Take it down
             </button>
           )}

@@ -40,7 +40,6 @@ export default function Reader({ piece, onClose }) {
     return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
-  const isLetter = piece.kind === "letter";
   const data = piece.data;
   const mood = moodOf(data.mood);
 
@@ -61,49 +60,32 @@ export default function Reader({ piece, onClose }) {
 
         <header className="pr-10">
           <p className="eyebrow" style={{ color: mood.color }}>
-            {isLetter ? "Hand-lettered" : mood.label}
+            {mood.label}
           </p>
           <h2 className="display mt-2 text-[clamp(1.6rem,1.2rem+1.6vw,2.5rem)]">
             {data.title}
           </h2>
-          <p className="mt-3 text-[0.75rem] tracking-[0.14em] uppercase text-[var(--ink-4)]">
-            {isLetter ? (
-              "From the archive"
-            ) : (
-              <>
-                {formatWhen(data.createdAt)}
-                <span className="mx-2" aria-hidden="true">
-                  ·
-                </span>
-                <span className="hand normal-case tracking-normal text-[0.95rem] text-[var(--ink-3)]">
-                  {data.author}
-                </span>
-              </>
-            )}
+          <p className="mt-3 text-[0.75rem] tracking-[0.14em] uppercase text-[var(--ink-3)]">
+            {formatWhen(data.createdAt)}
+            <span className="mx-2" aria-hidden="true">
+              ·
+            </span>
+            <span className="hand normal-case tracking-normal text-[0.95rem] text-[var(--ink-3)]">
+              {data.author}
+            </span>
           </p>
         </header>
 
         <hr className="rule my-6" />
 
         <div className="reader-scroll">
-          {isLetter ? (
-            // Hand-lettered SVG — next/image can't optimise it without dangerouslyAllowSVG.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={data.src}
-              alt={data.title}
-              className="w-full mix-blend-multiply"
-              decoding="async"
-            />
-          ) : (
-            <p className="reader-body">{data.text}</p>
-          )}
+          <p className="reader-body">{data.text}</p>
         </div>
 
         <footer className="mt-7 flex items-center justify-between gap-4 text-[var(--ink-4)]">
           <Seal size={30} />
           <p className="text-[0.6875rem] tracking-[0.2em] uppercase">
-            {isLetter ? "Things I Never Said" : "Held without judgement"}
+            Held without judgement
           </p>
         </footer>
       </div>

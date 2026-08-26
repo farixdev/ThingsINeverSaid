@@ -1,5 +1,5 @@
 import Wall from "@/components/wall/wall";
-import { LETTERS, PETALS } from "@/lib/letters";
+import { PETALS } from "@/lib/letters";
 import { getWall } from "@/lib/confessions";
 import { formatWhen } from "@/lib/format";
 
@@ -21,7 +21,7 @@ export default async function ReadPage() {
 
   return (
     <>
-      <Wall notes={notes} letters={LETTERS} petals={PETALS} />
+      <Wall notes={notes} petals={PETALS} />
 
       {/*
         The wall itself is a canvas — it means nothing to a crawler or a screen

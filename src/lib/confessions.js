@@ -120,28 +120,51 @@ export async function recentWritesFor(ipHash, minutes = 10) {
    always show the real state of the database, never a five-minute-old copy.
    ------------------------------------------------------------------------ */
 
-export async function listForDesk(status) {
+export async function listForDesk(status, search = "") {
   await ensureSchema();
   const wanted = status === "approved" ? "approved" : "pending";
-  const rows = await sql`
-    SELECT id, title, text, author, mood, status, "createdAt"
-    FROM confessions
-    WHERE status = ${wanted}
-    ORDER BY "createdAt" DESC
-    LIMIT ${DESK_LIMIT}
-  `;
+  const term = String(search || "").trim();
+
+  const rows = term
+    ? await sql`
+        SELECT id, title, text, author, mood, status, "createdAt"
+        FROM confessions
+        WHERE status = ${wanted}
+          AND (title ILIKE ${"%" + term + "%"}
+            OR text  ILIKE ${"%" + term + "%"}
+            OR author ILIKE ${"%" + term + "%"})
+        ORDER BY "createdAt" DESC
+        LIMIT ${DESK_LIMIT}
+      `
+    : await sql`
+        SELECT id, title, text, author, mood, status, "createdAt"
+        FROM confessions
+        WHERE status = ${wanted}
+        ORDER BY "createdAt" DESC
+        LIMIT ${DESK_LIMIT}
+      `;
   return rows.map(toNote);
 }
 
-export async function deskCounts() {
+/**
+ * Counts plus the highest id, which together change whenever anything on the
+ * desk changes. The admin page polls this to know when to pull fresh data.
+ * Counts are never filtered by a search — the tabs show the real backlog.
+ */
+export async function deskPulse() {
   await ensureSchema();
   const [row] = await sql`
     SELECT
       COUNT(*) FILTER (WHERE status = 'pending')::int  AS pending,
-      COUNT(*) FILTER (WHERE status = 'approved')::int AS approved
+      COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+      COALESCE(MAX(id), 0)::int                        AS latest
     FROM confessions
   `;
-  return { pending: row?.pending ?? 0, approved: row?.approved ?? 0 };
+  return {
+    pending: row?.pending ?? 0,
+    approved: row?.approved ?? 0,
+    latest: row?.latest ?? 0,
+  };
 }
 
 export async function setConfessionStatus(id, status) {

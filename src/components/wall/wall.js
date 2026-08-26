@@ -42,28 +42,19 @@ function scaleFor(width) {
 /* useLayoutEffect has nothing to do during SSR, and React says so loudly. */
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-export default function Wall({ notes, letters, petals = [] }) {
+export default function Wall({ notes, petals = [] }) {
   const pieces = useMemo(() => {
     const built = [];
-    let letterIndex = 0;
     let petalIndex = 0;
     notes.forEach((note, index) => {
       built.push({ kind: "note", id: String(note.id), data: note });
-      if (letterIndex < letters.length && (index + 1) % 6 === 0) {
-        const letter = letters[letterIndex++];
-        built.push({ kind: "letter", id: letter.id, data: letter });
-      }
-      if (petals.length && (index + 1) % 8 === 0) {
+      if (petals.length && (index + 1) % 7 === 0) {
         const petal = petals[petalIndex++ % petals.length];
         built.push({ kind: "petal", id: `${petal.id}-${index}`, data: petal });
       }
     });
-    while (letterIndex < letters.length) {
-      const letter = letters[letterIndex++];
-      built.push({ kind: "letter", id: letter.id, data: letter });
-    }
     return built;
-  }, [notes, letters, petals]);
+  }, [notes, petals]);
 
   const layout = useMemo(() => buildWallLayout(pieces), [pieces]);
 
@@ -100,7 +91,7 @@ export default function Wall({ notes, letters, petals = [] }) {
     return layout.cells.filter((cell) => {
       if (cell.piece.kind === "petal") return false;
       const d = cell.piece.data;
-      const haystack = `${d.title ?? ""} ${d.text ?? d.line ?? ""} ${d.author ?? ""} ${
+      const haystack = `${d.title ?? ""} ${d.text ?? ""} ${d.author ?? ""} ${
         moodOf(d.mood).label
       }`;
       return haystack.toLowerCase().includes(term);

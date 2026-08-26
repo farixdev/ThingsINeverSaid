@@ -43,6 +43,16 @@ async function guard() {
   if (!(await isSignedIn())) throw new Error("Not signed in.");
 }
 
+/**
+ * Forces the wall to be rebuilt. Every action here invalidates it already —
+ * this is for when the database was changed from somewhere else entirely.
+ */
+export async function refreshWall() {
+  await guard();
+  revalidateTag(WALL_TAG);
+  return { ok: true };
+}
+
 export async function approveConfession(id) {
   await guard();
   const note = await setConfessionStatus(id, "approved");

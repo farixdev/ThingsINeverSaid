@@ -283,6 +283,78 @@
   );
 }
 
+/* ---------- the desk ---------- */
+
+.desk-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  margin-bottom: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-3);
+  background: rgba(255, 253, 250, 0.6);
+  transition: border-color 0.35s var(--ease-soft);
+}
+
+.desk-search:focus-within {
+  border-color: rgba(169, 99, 93, 0.45);
+}
+
+.desk-search input {
+  width: clamp(7rem, 20vw, 12rem);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.desk-search input:focus {
+  outline: none;
+}
+
+.desk-search button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.desk-search button:hover {
+  color: var(--ink);
+}
+
+/* the heartbeat behind the automatic refresh */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7d9a6f;
+  box-shadow: 0 0 0 0 rgba(125, 154, 111, 0.5);
+  animation: heartbeat 2.6s ease-out infinite;
+}
+
+.pulse-dot[data-off="true"] {
+  background: var(--ink-4);
+  animation: none;
+  box-shadow: none;
+}
+
+@keyframes heartbeat {
+  0% {
+    box-shadow: 0 0 0 0 rgba(125, 154, 111, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(125, 154, 111, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(125, 154, 111, 0);
+  }
+}
+
 /* ---------- grain + ambience ---------- */
 
 .grain {
