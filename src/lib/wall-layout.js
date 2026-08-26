@@ -38,6 +38,15 @@ export function mulberry32(seed) {
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
+/** Sticky notes hold themselves up; everything else needs something. */
+function pickFastener(paper, isLetter, roll) {
+  if (paper === "sticky") return roll < 0.62 ? "none" : roll < 0.86 ? "washi" : "tape";
+  if (paper === "scrap") return roll < 0.4 ? "tape" : roll < 0.72 ? "pin" : "washi";
+  if (paper === "card") return roll < 0.32 ? "clip" : roll < 0.6 ? "staple" : roll < 0.84 ? "pin" : "tape";
+  if (isLetter) return roll < 0.55 ? "tape" : "pin";
+  return ["tape", "washi", "pin", "thread", "clip"][Math.floor(roll * 5)];
+}
+
 /**
  * Depth bands. Far pieces travel slower than the pointer and sit further back;
  * near pieces overtake it. That difference is the whole illusion.
@@ -65,11 +74,29 @@ export function buildWallLayout(pieces) {
 
     const isLetter = piece.kind === "letter";
     const isPetal = piece.kind === "petal";
+
+    // What a note is written on depends on how much there is to say: a single
+    // line lands on a sticky, a long confession gets a proper sheet.
+    const length = (piece.data?.text ?? piece.data?.line ?? "").length;
+    const paperRoll = rand();
+    let paper = "slip";
+    if (!isLetter && !isPetal) {
+      if (length <= 150) paper = paperRoll < 0.7 ? "sticky" : "scrap";
+      else if (length <= 420) paper = paperRoll < 0.4 ? "slip" : paperRoll < 0.68 ? "card" : paperRoll < 0.9 ? "sticky" : "scrap";
+      else paper = paperRoll < 0.58 ? "slip" : "card";
+    }
+
     const width = isPetal
       ? Math.round(lerp(84, 150, rand()))
       : isLetter
         ? Math.round(lerp(238, 306, rand()))
-        : Math.round(lerp(204, 268, rand()));
+        : paper === "sticky"
+          ? Math.round(lerp(152, 198, rand()))
+          : paper === "card"
+            ? Math.round(lerp(232, 284, rand()))
+            : paper === "scrap"
+              ? Math.round(lerp(186, 246, rand()))
+              : Math.round(lerp(204, 268, rand()));
 
     const x = (col + 0.5) * CELL_W + (rand() - 0.5) * CELL_W * JITTER * 2;
     const y = (row + 0.5) * CELL_H + (rand() - 0.5) * CELL_H * JITTER * 2;
@@ -85,6 +112,16 @@ export function buildWallLayout(pieces) {
             ? 1
             : 2;
 
+    const height = isPetal
+      ? width
+      : isLetter
+        ? width * 0.86
+        : paper === "sticky"
+          ? width * 0.94
+          : paper === "scrap"
+            ? 120 + rand() * 64
+            : 128 + rand() * 74;
+
     return {
       key: `${piece.kind}-${piece.id}`,
       piece,
@@ -93,12 +130,14 @@ export function buildWallLayout(pieces) {
       width,
       depth,
       seed,
-      rotation: (rand() - 0.5) * (isPetal ? 90 : 6.2),
+      paper,
+      rotation: (rand() - 0.5) * (isPetal ? 90 : paper === "sticky" ? 8.5 : 6.2),
       // A rough height estimate, only used for culling. Real height is intrinsic.
-      height: isPetal ? width : isLetter ? width * 0.86 : 128 + rand() * 74,
+      height,
+      enter: Math.round(rand() * 280),
       drift: 5 + rand() * 7,
       driftDelay: -rand() * 14,
-      fastener: ["tape", "tape", "pin", "thread"][Math.floor(rand() * 4)],
+      fastener: pickFastener(paper, isLetter, rand()),
     };
   });
 
@@ -152,13 +191,24 @@ export function depthView(depthIndex, camera, viewport, pad = 0) {
   };
 }
 
-/** Screen-space offset for a depth layer's CSS transform. */
-export function layerTransform(depthIndex, camera, viewport) {
+/**
+ * Screen-space transform for a depth layer.
+ *
+ * `tilt` leans the whole plane by a fraction of a degree about the middle of
+ * the viewport — nearer layers lean further, which is what sells the weight.
+ */
+export function layerTransform(depthIndex, camera, viewport, tilt = 0) {
   const depth = DEPTHS[depthIndex];
   const scale = camera.z * depth.scale;
   const x = viewport.w / 2 - camera.z * camera.x * depth.parallax;
   const y = viewport.h / 2 - camera.z * camera.y * depth.parallax;
-  return `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
+  const move = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
+  if (!tilt) return move;
+
+  const angle = (tilt * depth.parallax).toFixed(3);
+  const cx = (viewport.w / 2).toFixed(1);
+  const cy = (viewport.h / 2).toFixed(1);
+  return `translate3d(${cx}px, ${cy}px, 0) rotate(${angle}deg) translate3d(-${cx}px, -${cy}px, 0) ${move}`;
 }
 
 /**

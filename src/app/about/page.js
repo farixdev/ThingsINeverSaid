@@ -2,55 +2,32 @@ import Link from "next/link";
 import Reveal from "@/components/reveal";
 import { Arrow, Seal, Sprig } from "@/components/marks";
 import { FEATURED_LETTER } from "@/lib/letters";
-import { getStats } from "@/lib/confessions";
-import { numbers } from "@/lib/format";
-
-export const revalidate = 300;
 
 export const metadata = {
   title: "About",
-  description:
-    "Why this wall exists, what happens to what you write, and how it was built.",
+  description: "Why this wall exists, and the confession that started it.",
 };
 
-const HOW = [
-  {
-    n: "01",
-    title: "You write it",
-    body: "One box, no account, no email. The only thing the site asks for is the sentence you have been carrying.",
-  },
-  {
-    n: "02",
-    title: "It goes on the wall",
-    body: "Not a feed. A plane you drag through in any direction, where your note sits beside a stranger's with no ranking between them.",
-  },
-  {
-    n: "03",
-    title: "Nothing happens next",
-    body: "No likes, no replies, no notifications, no way to find out who read it. That absence is the whole point.",
-  },
+/**
+ * The letter this whole site was built around. Kept here in full, in the
+ * writer's own words — it is the reason the rest of it exists.
+ */
+const STORY = [
+  "Deep down, she will be the last. This time was different. She wasn't a passing image or a distant idea. She existed in my life longer than anyone else I've loved. I saw her often. She stayed in my world. And yes, I even talked to her. More than once. Which, for me, felt like a miracle.",
+  "So what went wrong? I live with a strange illness — a constant feeling that nothing is real, that everything is a dream. Derealization, I think it's called. It feels like watching life through glass, never fully inside it, never fully awake. It makes connection terrifying, because everything already feels like it's slipping away. Still… this girl.",
+  "I swear to you, she is the most beautiful and purest person I've ever seen. And I don't say that just because I love her. I say it because after loving so many women in silence, I've learned something important: love has nothing to do with facial features, height, or body. Love is about the soul.",
+  "And she had both — the kind of beauty anyone could admire, and a soul that pulled me in with violent force. The reason I never confessed is simple: I knew she wasn't interested in me. I can read faces. I can feel energy. I can tell when someone's heart is closed to me. Her behaviour, the way she interacted with other boys, the way she existed around me — it all told me enough. So I did what I always do. I stepped back. I created distance. I chose pain I could control over rejection I couldn't survive.",
+  "Now life feels like hell again, like it always does. This time, though, I made a promise to myself. I will live like this forever. I won't chase what I want. I won't marry. I won't build dreams that require hope. I will grieve. I will read. I will write. And I will exist quietly on the edge of everything.",
+  "You might think, “What a jerk, falling in love with everyone. Love is meant to be with one person for life.” And I believe that too, but maybe only for the charming, funny, good-looking guys. For people like me, love has no boundaries and no ending. It comes without permission and leaves without closure.",
+  "And maybe, if life ever decides to be kind to me, someone will love me the way I love others. But until then, loving does not stop just because it hurts. I don't see this as tragedy anymore, and I don't hate the world for it either. Some people are built to observe life instead of participating in it, to feel everything without ever being allowed to keep it.",
+  "I learned early that wanting something doesn't mean you deserve it, and loving someone doesn't guarantee you will ever be chosen. So I write not to change anything, but to keep my feelings from disappearing completely, to leave proof that they once existed. Maybe one day she will read these words, maybe she won't, but either way they remain, breathing quietly on the page.",
+  "Over time, hope became exhausting, so I let it go without making a scene. Now I move through life with low expectations, not because I'm bitter, but because I understand how easily things slip away. This is not a phase or a wound waiting to heal — it's simply the shape my life took, and I've stopped arguing with it.",
 ];
 
-const BUILT = [
-  ["Framework", "Next.js 16, App Router, React Server Components"],
-  ["Database", "Neon — serverless Postgres over HTTP"],
-  ["Writing", "React Server Actions, no client-side API layer"],
-  ["Caching", "Tag-invalidated data cache; the wall is only rebuilt when it changes"],
-  ["The wall", "A hand-written pan/zoom engine — culling, parallax and inertia in one rAF loop"],
-  ["Type", "Instrument Serif, Geist, Caveat"],
-];
-
-export default async function AboutPage() {
-  let stats = { total: 0, latest: null };
-  try {
-    stats = await getStats();
-  } catch (error) {
-    console.error("About could not read the wall stats:", error);
-  }
-
+export default function AboutPage() {
   return (
     <main className="scroll-surface">
-      <div className="mx-auto w-full max-w-[46rem] px-6 pb-28 pt-32 sm:px-8 sm:pt-40">
+      <div className="mx-auto w-full max-w-[44rem] px-6 pb-28 pt-32 sm:px-8 sm:pt-40">
         {/* ---------------------------------------------------------- hero */}
         <Reveal as="header" className="text-center">
           <Sprig size={38} className="mx-auto text-[var(--rose)] opacity-45" />
@@ -60,16 +37,11 @@ export default async function AboutPage() {
             <br />
             <em className="italic text-[var(--rose)]">sayable anonymously.</em>
           </h1>
-          <p className="mx-auto mt-7 max-w-[32rem] text-[1.02rem] leading-[1.8] text-[var(--ink-2)]">
-            {numbers.format(stats.total)} of them are sitting on the wall right
-            now, left by people you will never meet and who will never know you
-            read them.
-          </p>
         </Reveal>
 
-        <hr className="rule my-16" />
+        <hr className="rule my-14" />
 
-        {/* ---------------------------------------------------------- essay */}
+        {/* ----------------------------------------------------------- why */}
         <Reveal as="section" className="space-y-6 text-[1.02rem] leading-[1.85]">
           <p>
             Most of what we feel never gets said. Not because it does not
@@ -95,36 +67,32 @@ export default async function AboutPage() {
           </p>
         </Reveal>
 
-        <hr className="rule my-16" />
+        <hr className="rule my-14" />
 
-        {/* ------------------------------------------------------ how it works */}
-        <section>
-          <Reveal>
-            <p className="eyebrow">how it works</p>
-          </Reveal>
-          <div className="mt-8 space-y-8">
-            {HOW.map((step, index) => (
-              <Reveal key={step.n} delay={index * 90}>
-                <div className="flex gap-5 sm:gap-7">
-                  <span className="mt-1 shrink-0 font-[family-name:var(--font-display)] text-[1.4rem] text-[var(--rose)] opacity-55">
-                    {step.n}
-                  </span>
-                  <div>
-                    <h2 className="text-[1.25rem]">{step.title}</h2>
-                    <p className="mt-2 leading-[1.8] text-[var(--ink-2)]">{step.body}</p>
-                  </div>
-                </div>
-              </Reveal>
+        {/* ------------------------------------------------------- the story */}
+        <Reveal as="section">
+          <p className="eyebrow text-center">the one that started it</p>
+          <h2 className="display mt-4 text-center text-[clamp(1.8rem,1.3rem+2vw,2.8rem)]">
+            You never knew.
+          </h2>
+          <p className="mt-4 text-center text-[0.8125rem] text-[var(--ink-3)]">
+            The confession this whole place was built to hold.
+          </p>
+
+          <div className="story mt-11">
+            {STORY.map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
             ))}
+            <p className="story-sign">— written, never sent</p>
           </div>
-        </section>
+        </Reveal>
 
-        <hr className="rule my-16" />
+        <hr className="rule my-14" />
 
         {/* --------------------------------------------------- featured letter */}
         <Reveal as="section">
           <p className="eyebrow text-center">from the archive</p>
-          <h2 className="display mt-4 text-center text-[clamp(1.7rem,1.3rem+1.8vw,2.6rem)]">
+          <h2 className="display mt-4 text-center text-[clamp(1.6rem,1.3rem+1.6vw,2.4rem)]">
             {FEATURED_LETTER.title}
           </h2>
           <figure className="paper mt-9 flex max-h-[70vh] justify-center overflow-hidden rounded-[4px] p-4 sm:p-7">
@@ -138,37 +106,12 @@ export default async function AboutPage() {
               decoding="async"
             />
           </figure>
-          <figcaption className="mt-4 text-center text-[0.8125rem] text-[var(--ink-4)]">
+          <figcaption className="mt-4 text-center text-[0.8125rem] text-[var(--ink-3)]">
             One of the hand-lettered pieces pinned across the wall.
           </figcaption>
         </Reveal>
 
-        <hr className="rule my-16" />
-
-        {/* -------------------------------------------------------- the build */}
-        <section>
-          <Reveal>
-            <p className="eyebrow">how it&apos;s built</p>
-            <p className="mt-4 max-w-[34rem] leading-[1.8] text-[var(--ink-2)]">
-              One Next.js app, one Postgres table, no client-side API layer, and
-              a wall renderer written by hand rather than pulled off a shelf.
-            </p>
-          </Reveal>
-          <dl className="mt-9 divide-y divide-[var(--line-soft)] border-y border-[var(--line-soft)]">
-            {BUILT.map(([term, detail], index) => (
-              <Reveal key={term} delay={index * 60}>
-                <div className="flex flex-col gap-1 py-4 sm:flex-row sm:gap-8">
-                  <dt className="w-[9rem] shrink-0 text-[0.6875rem] uppercase tracking-[0.18em] text-[var(--ink-4)]">
-                    {term}
-                  </dt>
-                  <dd className="text-[0.95rem] leading-[1.7]">{detail}</dd>
-                </div>
-              </Reveal>
-            ))}
-          </dl>
-        </section>
-
-        <hr className="rule my-16" />
+        <hr className="rule my-14" />
 
         {/* ------------------------------------------------------------- close */}
         <Reveal as="section" className="text-center">
@@ -185,7 +128,7 @@ export default async function AboutPage() {
               Walk the wall
             </Link>
           </div>
-          <p className="mt-14 text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--ink-4)]">
+          <p className="mt-14 text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--ink-3)]">
             Made by{" "}
             <a
               href="https://github.com/farixdev"

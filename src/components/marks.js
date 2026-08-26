@@ -205,6 +205,8 @@ export function Arrow({ size = 16, className = "" }) {
 
 /** The little paper fasteners that hold notes to the wall. */
 export function Fastener({ kind, color }) {
+  if (kind === "none") return null;
+
   if (kind === "pin") {
     return (
       <span className="fastener fastener-pin" aria-hidden="true">
@@ -215,6 +217,7 @@ export function Fastener({ kind, color }) {
       </span>
     );
   }
+
   if (kind === "thread") {
     return (
       <span className="fastener fastener-thread" aria-hidden="true">
@@ -230,5 +233,45 @@ export function Fastener({ kind, color }) {
       </span>
     );
   }
+
+  if (kind === "staple") {
+    return (
+      <span className="fastener fastener-staple" aria-hidden="true">
+        <svg viewBox="0 0 26 10" width="26" height="10">
+          <g fill="none" stroke="#8d8279" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M4 3.5 8.5 7" />
+            <path d="M22 3.5 17.5 7" />
+          </g>
+        </svg>
+      </span>
+    );
+  }
+
+  if (kind === "clip") {
+    return (
+      <span className="fastener fastener-clip" aria-hidden="true">
+        <svg viewBox="0 0 20 34" width="20" height="34">
+          <path
+            d="M6.5 30V8.5a4.5 4.5 0 0 1 9 0v18a2.9 2.9 0 0 1-5.8 0V10.5"
+            fill="none"
+            stroke="#9a9089"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+
+  if (kind === "washi") {
+    return (
+      <span
+        className="fastener fastener-tape fastener-washi"
+        style={{ "--washi": color }}
+        aria-hidden="true"
+      />
+    );
+  }
+
   return <span className="fastener fastener-tape" aria-hidden="true" />;
 }

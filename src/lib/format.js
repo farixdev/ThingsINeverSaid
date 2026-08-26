@@ -10,5 +10,3 @@ export function formatWhen(iso) {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? "" : monthYear.format(date);
 }
-
-export const numbers = new Intl.NumberFormat("en-US");

@@ -1,16 +1,14 @@
 import Link from "next/link";
 import AmbientWall from "@/components/ambient-wall";
 import { Arrow, Sprig } from "@/components/marks";
-import { getStats, getWall } from "@/lib/confessions";
-import { numbers } from "@/lib/format";
+import { getWall } from "@/lib/confessions";
 
 export const revalidate = 300;
 
 export default async function HomePage() {
   let notes = [];
-  let stats = { total: 0, latest: null };
   try {
-    [notes, stats] = await Promise.all([getWall(), getStats()]);
+    notes = await getWall();
   } catch (error) {
     console.error("Home could not reach the wall:", error);
   }
@@ -67,19 +65,14 @@ export default async function HomePage() {
         className="absolute inset-x-0 bottom-0 z-10 px-6 pb-6 rise"
         style={{ animationDelay: "0.6s" }}
       >
-        <div className="mx-auto flex max-w-[92rem] flex-col-reverse items-center gap-3 text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--ink-4)] sm:flex-row sm:justify-between">
-          <p>{numbers.format(stats.total)} held here</p>
-          {newest ? (
-            <p className="max-w-[30rem] truncate normal-case tracking-normal">
-              <span className="hand text-[0.95rem] text-[var(--ink-3)]">
-                &ldquo;{newest.title}&rdquo;
-              </span>
-              <span className="ml-2 text-[var(--ink-4)]">— the most recent</span>
-            </p>
-          ) : (
-            <p>nothing here yet</p>
-          )}
-        </div>
+        {newest && (
+          <p className="mx-auto max-w-[34rem] truncate text-center text-[0.8125rem] text-[var(--ink-4)]">
+            <span className="hand text-[1rem] text-[var(--ink-3)]">
+              &ldquo;{newest.title}&rdquo;
+            </span>
+            <span className="ml-2">— the most recent</span>
+          </p>
+        )}
       </div>
     </main>
   );

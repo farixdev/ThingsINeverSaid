@@ -41,21 +41,6 @@ export const getWall = unstable_cache(
   { revalidate: 300, tags: [WALL_TAG] }
 );
 
-export const getStats = unstable_cache(
-  async () => {
-    await ensureSchema();
-    const [row] = await sql`
-      SELECT COUNT(*)::int AS total, MAX("createdAt") AS latest FROM confessions
-    `;
-    return {
-      total: row?.total ?? 0,
-      latest: row?.latest ? new Date(row.latest).toISOString() : null,
-    };
-  },
-  ["wall-stats", "v1"],
-  { revalidate: 300, tags: [WALL_TAG] }
-);
-
 /** Paginated + searchable feed behind /api/confessions. */
 export async function listConfessions({ limit = 24, offset = 0, search = "" } = {}) {
   await ensureSchema();

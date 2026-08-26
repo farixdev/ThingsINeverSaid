@@ -157,12 +157,6 @@ function Sheet({ onAgain }) {
         </div>
       </div>
 
-      <p className="mt-4 text-[0.6875rem] leading-relaxed text-[var(--ink-3)]">
-        No account, no email, no IP kept in the open. Everything you write here
-        is public and permanent — so leave out the things that could identify
-        anyone.
-      </p>
-
       {state.message && !state.ok && (
         <p className="notice mt-3" role="alert">
           {state.message}

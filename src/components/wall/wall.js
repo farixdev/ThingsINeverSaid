@@ -26,11 +26,12 @@ const DRIFT_SPEED = 0.22; // px per frame of that drift
 const RECOMPUTE_DISTANCE = 130; // world px of travel before re-culling
 const FLIGHT_MS = 950;
 const OVERVIEW_ZOOM = 0.42;
+const MAX_TILT = 0.55; // degrees the plane leans at full speed
 
 /* useLayoutEffect has nothing to do during SSR, and React says so loudly. */
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-export default function Wall({ notes, letters, petals = [], total }) {
+export default function Wall({ notes, letters, petals = [] }) {
   const pieces = useMemo(() => {
     const built = [];
     let letterIndex = 0;
@@ -72,6 +73,8 @@ export default function Wall({ notes, letters, petals = [], total }) {
   const layoutRef = useRef(layout);
   const matchCursor = useRef(0);
   const calm = useRef(false);
+  const tilt = useRef(0);
+  const dragLean = useRef(0);
   const sized = useRef(false);
 
   const [bands, setBands] = useState(() => [[], [], []]);
@@ -122,7 +125,9 @@ export default function Wall({ notes, letters, petals = [], total }) {
     const cam = camera.current;
     for (let i = 0; i < 3; i += 1) {
       const node = layerRefs.current[i];
-      if (node) node.style.transform = layerTransform(i, cam, viewport.current);
+      if (node) {
+        node.style.transform = layerTransform(i, cam, viewport.current, tilt.current);
+      }
     }
   }, []);
 
@@ -161,6 +166,17 @@ export default function Wall({ notes, letters, petals = [], total }) {
           cam.x += Math.cos(phase) * DRIFT_SPEED * dt;
           cam.y += Math.sin(phase * 0.73) * DRIFT_SPEED * 0.7 * dt;
         }
+      }
+
+      // Paper has weight: the plane leans a little into fast sideways movement
+      // and eases back to level once things settle.
+      if (calm.current) {
+        tilt.current = 0;
+      } else {
+        const lean = drag.current.active ? dragLean.current : velocity.current.x;
+        const target = Math.max(-1, Math.min(1, lean / 46)) * MAX_TILT;
+        tilt.current += (target - tilt.current) * Math.min(1, 0.09 * dt);
+        if (!drag.current.active) dragLean.current *= Math.pow(0.86, dt);
       }
 
       paint();
@@ -297,19 +313,43 @@ export default function Wall({ notes, letters, petals = [], total }) {
     // Blend into the running velocity so a throw feels weighted, not twitchy.
     velocity.current.x = velocity.current.x * 0.6 + (-dx / cam.z) * 0.4;
     velocity.current.y = velocity.current.y * 0.6 + (-dy / cam.z) * 0.4;
+    dragLean.current = dragLean.current * 0.7 + (-dx / cam.z) * 0.3;
     if (!moved && drag.current.moved > 40) setMoved(true);
   };
 
+  /**
+   * The wall holds pointer capture while you drag, and a captured pointer
+   * sends its `click` to the capturing element rather than the button that was
+   * pressed — so a tap is resolved here, from what is actually under the
+   * pointer when it lifts.
+   */
+  const openAt = (clientX, clientY) => {
+    const target = document
+      .elementFromPoint(clientX, clientY)
+      ?.closest?.("[data-piece]");
+    const key = target?.dataset?.piece;
+    if (!key) return;
+    const cell = layoutRef.current.cells.find((c) => c.key === key);
+    if (!cell || cell.piece.kind === "petal") return;
+    // Keyboard still opens through onClick; don't let that fire twice.
+    swallowClicksUntil.current = performance.now() + 400;
+    setReading(cell.piece);
+  };
+
   const endPointer = (event) => {
+    const wasDragging = drag.current.active;
     pointers.current.delete(event.pointerId);
     if (pointers.current.size < 2) drag.current.pinch = 0;
     if (pointers.current.size === 0) {
-      if (drag.current.moved > DRAG_SLOP) {
-        // A throw shouldn't also open whatever was under the finger.
-        swallowClicksUntil.current = performance.now() + 260;
-      }
+      const tapped = wasDragging && drag.current.moved <= DRAG_SLOP;
       drag.current.active = false;
       wallRef.current?.removeAttribute("data-dragging");
+      if (tapped && event.type === "pointerup") {
+        openAt(event.clientX, event.clientY);
+      } else if (!tapped) {
+        // A throw shouldn't also open whatever was under the finger.
+        swallowClicksUntil.current = performance.now() + 300;
+      }
     }
     lastTouch.current = performance.now();
   };
@@ -465,6 +505,7 @@ export default function Wall({ notes, letters, petals = [], total }) {
                       width: `${item.cell.width}px`,
                       "--rot": `${item.rotation}deg`,
                       "--focus": item.focus.toFixed(3),
+                      "--enter": `${item.cell.enter}ms`,
                     }}
                   >
                     <div
@@ -579,7 +620,6 @@ export default function Wall({ notes, letters, petals = [], total }) {
       {hasWall && (
         <p className="wall-hint" data-gone={moved || reading ? "true" : undefined}>
           drag anywhere
-          <span className="wall-hint-count">{total} held here</span>
         </p>
       )}
 
