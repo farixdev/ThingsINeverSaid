@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import {
   SESSION_COOKIE,
   checkCredentials,
@@ -49,27 +49,27 @@ async function guard() {
  */
 export async function refreshWall() {
   await guard();
-  revalidateTag(WALL_TAG);
+  updateTag(WALL_TAG);
   return { ok: true };
 }
 
 export async function approveConfession(id) {
   await guard();
   const note = await setConfessionStatus(id, "approved");
-  if (note) revalidateTag(WALL_TAG);
+  if (note) updateTag(WALL_TAG);
   return { ok: Boolean(note) };
 }
 
 export async function unapproveConfession(id) {
   await guard();
   const note = await setConfessionStatus(id, "pending");
-  if (note) revalidateTag(WALL_TAG);
+  if (note) updateTag(WALL_TAG);
   return { ok: Boolean(note) };
 }
 
 export async function removeConfession(id) {
   await guard();
   const gone = await deleteConfession(id);
-  if (gone) revalidateTag(WALL_TAG);
+  if (gone) updateTag(WALL_TAG);
   return { ok: gone };
 }

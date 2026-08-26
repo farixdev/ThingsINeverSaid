@@ -2,6 +2,7 @@ import Link from "next/link";
 import AmbientWall from "@/components/ambient-wall";
 import { Arrow, Sprig } from "@/components/marks";
 import { getWall } from "@/lib/confessions";
+import { since } from "@/lib/format";
 
 export const revalidate = 300;
 
@@ -66,12 +67,16 @@ export default async function HomePage() {
         style={{ animationDelay: "0.6s" }}
       >
         {newest && (
-          <p className="mx-auto max-w-[34rem] truncate text-center text-[0.8125rem] text-[var(--ink-4)]">
-            <span className="hand text-[1rem] text-[var(--ink-3)]">
-              &ldquo;{newest.title}&rdquo;
-            </span>
-            <span className="ml-2">— the most recent</span>
-          </p>
+          /* The only live thing on this page: proof the wall is still being
+             added to. A fragment, when it was left, and a way in. */
+          <Link
+            href="/read"
+            className="newest"
+            aria-label={`The most recent confession, left ${since(newest.createdAt)}. Go to the wall.`}
+          >
+            <span className="newest-quote">&ldquo;{newest.title}&rdquo;</span>
+            <span className="newest-when">left here {since(newest.createdAt)}</span>
+          </Link>
         )}
       </div>
     </main>

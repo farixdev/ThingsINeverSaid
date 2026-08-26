@@ -34,7 +34,7 @@ export const getWall = unstable_cache(
       SELECT id, title, text, author, mood, status, "createdAt"
       FROM confessions
       WHERE status = 'approved'
-      ORDER BY "createdAt" DESC
+      ORDER BY "createdAt" DESC, id DESC
       LIMIT ${WALL_LIMIT}
     `;
     return rows.map(toNote);
@@ -58,14 +58,14 @@ export async function listConfessions({ limit = 24, offset = 0, search = "" } = 
           AND (title ILIKE ${"%" + term + "%"}
             OR text  ILIKE ${"%" + term + "%"}
             OR author ILIKE ${"%" + term + "%"})
-        ORDER BY "createdAt" DESC
+        ORDER BY "createdAt" DESC, id DESC
         LIMIT ${safeLimit} OFFSET ${safeOffset}
       `
     : await sql`
         SELECT id, title, text, author, mood, status, "createdAt", COUNT(*) OVER()::int AS total
         FROM confessions
         WHERE status = 'approved'
-        ORDER BY "createdAt" DESC
+        ORDER BY "createdAt" DESC, id DESC
         LIMIT ${safeLimit} OFFSET ${safeOffset}
       `;
 

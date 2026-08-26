@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { insertConfession, recentWritesFor, WALL_TAG } from "./confessions";
 import { isMood, DEFAULT_MOOD } from "./moods";
 
@@ -72,7 +72,7 @@ export async function submitConfession(_prevState, formData) {
 
   try {
     const note = await insertConfession({ title, text, author, mood, ipHash });
-    revalidateTag(WALL_TAG);
+    updateTag(WALL_TAG);
     return { ok: true, message: "Sent. It goes up once it's been read.", field: null, id: note.id };
   } catch (error) {
     console.error("submitConfession failed:", error);

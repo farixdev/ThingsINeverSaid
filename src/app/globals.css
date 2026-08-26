@@ -283,6 +283,52 @@
   );
 }
 
+/* the newest confession, at the foot of the home page */
+
+.newest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15rem 0.6rem;
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  text-align: center;
+  transition: opacity 0.4s var(--ease-soft);
+}
+
+.newest:hover {
+  opacity: 1;
+}
+
+.newest-quote {
+  font-family: var(--font-hand);
+  font-size: 1.02rem;
+  line-height: 1.35;
+  color: var(--ink-2);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid transparent;
+  transition: color 0.4s var(--ease-soft), border-color 0.4s var(--ease-soft);
+}
+
+.newest:hover .newest-quote {
+  color: var(--ink);
+  border-bottom-color: rgba(169, 99, 93, 0.4);
+}
+
+.newest-when {
+  flex: none;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
 /* ---------- the desk ---------- */
 
 .desk-search {
